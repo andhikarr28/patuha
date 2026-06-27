@@ -10,6 +10,7 @@ use App\Http\Controllers\DetailPembelianController;
 use App\Http\Controllers\PenjualanController;
 use App\Http\Controllers\DetailPenjualanController;
 use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\MarketplaceController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -61,6 +62,36 @@ Route::middleware(['auth'])->group(function () {
         '/laporan/pembelian/pdf',
         [LaporanController::class, 'pdfPembelian']
     )->name('laporan.pembelian.pdf');
+
+    Route::get(
+        '/marketplace',
+        [MarketplaceController::class, 'index']
+    )->name('marketplace.index');
+
+    Route::get(
+        '/shopee/auth',
+        [MarketplaceController::class, 'auth']
+    )->name('shopee.auth');
+
+    Route::get(
+        '/shopee/callback',
+        [MarketplaceController::class, 'callback']
+    )->name('shopee.callback');
+
+    Route::get(
+        '/shopee/shop-info',
+        [MarketplaceController::class, 'shopInfo']
+    );
+
+    Route::get(
+        '/shopee/items',
+        [MarketplaceController::class, 'getItems']
+    );
+
+    Route::get(
+        '/shopee/item-info',
+        [MarketplaceController::class, 'itemInfo']
+    );
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
