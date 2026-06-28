@@ -104,11 +104,6 @@ Route::middleware(['auth'])->group(function () {
     )->name('marketplace.mapping');
 
     Route::get(
-        '/shopee/models',
-        [MarketplaceController::class, 'getModels']
-    );
-
-    Route::get(
         '/marketplace/mapping',
         [MarketplaceController::class, 'mapping']
     );
@@ -121,7 +116,17 @@ Route::middleware(['auth'])->group(function () {
     Route::post(
         '/marketplace/sync-stock',
         [MarketplaceController::class, 'syncStock']
-    );
+    )->name('marketplace.sync-stock');
+
+    Route::get(
+        '/marketplace/sync-products',
+        [MarketplaceController::class, 'syncProducts']
+    )->name('marketplace.sync-products');
+
+    Route::post(
+        '/marketplace/sync-models',
+        [MarketplaceController::class, 'getModels']
+    )->name('marketplace.sync-models');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

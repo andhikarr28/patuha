@@ -9,13 +9,35 @@ use App\Models\MarketplaceItem;
 use App\Models\VarianBarang;
 use App\Models\MarketplaceItemModel;
 use App\Models\MarketplaceMapping;
+use App\Models\MarketplaceSyncLog;
 
 
 class MarketplaceController extends Controller
 {
     public function index()
     {
-        return view('marketplace.index');
+        $jumlahProduk =
+            MarketplaceItem::count();
+
+        $jumlahVarian =
+            MarketplaceItemModel::count();
+
+        $jumlahMapping =
+            MarketplaceMapping::count();
+
+        $lastSync =
+            MarketplaceSyncLog::latest()
+                ->first();
+
+        return view(
+            'marketplace.index',
+            compact(
+                'jumlahProduk',
+                'jumlahVarian',
+                'jumlahMapping',
+                'lastSync'
+            )
+        );
     }
 
     public function auth()
@@ -170,7 +192,7 @@ class MarketplaceController extends Controller
         );
 
         dd(
-            $response['response']['item'][0]
+            $response['response']
         );
     }
 
@@ -267,65 +289,76 @@ class MarketplaceController extends Controller
     {
         $token = MarketplaceToken::first();
 
-        $item = MarketplaceItem::first();
+        $items = MarketplaceItem::all();
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
 
-        $path = "/api/v2/product/get_model_list";
+        foreach ($items as $item) {
 
-        $timestamp = time();
+            $path = "/api/v2/product/get_model_list";
 
-        $baseString =
-            $partnerId .
-            $path .
-            $timestamp .
-            $token->access_token .
-            $token->shop_id;
+            $timestamp = time();
 
-        $sign = hash_hmac(
-            'sha256',
-            $baseString,
-            $partnerKey
-        );
+            $baseString =
+                $partnerId .
+                $path .
+                $timestamp .
+                $token->access_token .
+                $token->shop_id;
 
-        $response = Http::get(
-            "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
-            [
-                'partner_id' => $partnerId,
-                'timestamp' => $timestamp,
-                'access_token' => $token->access_token,
-                'shop_id' => $token->shop_id,
-                'item_id' => $item->external_product_id,
-                'sign' => $sign,
-            ]
-        );
+            $sign = hash_hmac(
+                'sha256',
+                $baseString,
+                $partnerKey
+            );
 
-        foreach (
-            $response['response']['model']
-            as $model
-        ) {
-
-            MarketplaceItemModel::updateOrCreate(
+            $response = Http::get(
+                "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
                 [
-                    'model_id' => $model['model_id']
-                ],
-                [
-                    'marketplace_item_id' => $item->id,
-
-                    'model_sku' =>
-                        $model['model_sku'],
-
-                    'stok' =>
-                        $model['stock_info_v2']
-                        ['summary_info']
-                        ['total_available_stock']
-                        ?? 0,
+                    'partner_id' => $partnerId,
+                    'timestamp' => $timestamp,
+                    'access_token' => $token->access_token,
+                    'shop_id' => $token->shop_id,
+                    'item_id' => $item->external_product_id,
+                    'sign' => $sign,
                 ]
             );
+
+            if (
+                !isset($response['response']['model'])
+            ) {
+                continue;
+            }
+
+            foreach (
+                $response['response']['model']
+                as $model
+            ) {
+
+                MarketplaceItemModel::updateOrCreate(
+                    [
+                        'model_id' =>
+                            $model['model_id']
+                    ],
+                    [
+                        'marketplace_item_id' =>
+                            $item->id,
+
+                        'model_sku' =>
+                            $model['model_sku'],
+
+                        'stok' =>
+                            $model['stock_info_v2']
+                            ['summary_info']
+                            ['total_available_stock']
+                            ?? 0,
+                    ]
+                );
+            }
         }
 
-        dd('Model berhasil disimpan');
+        dd('Semua model berhasil disimpan');
     }
 
     public function storeMapping(Request $request)
@@ -371,9 +404,130 @@ class MarketplaceController extends Controller
                     ]);
         }
 
+        MarketplaceSyncLog::create([
+            'marketplace_id' => 1,
+            'jumlah_produk' => MarketplaceItem::count(),
+            'jumlah_varian' => MarketplaceItemModel::count(),
+            'sync_at' => now(),
+        ]);
+
         return back()->with(
             'success',
             'Sinkronisasi stok berhasil'
+        );
+    }
+
+    public function syncProducts()
+    {
+        $token = MarketplaceToken::first();
+
+        $partnerId = config('services.shopee.partner_id');
+        $partnerKey = config('services.shopee.partner_key');
+
+        /*
+        =====================
+        GET ITEM LIST
+        =====================
+        */
+
+        $path = "/api/v2/product/get_item_list";
+
+        $timestamp = time();
+
+        $baseString =
+            $partnerId .
+            $path .
+            $timestamp .
+            $token->access_token .
+            (int) $token->shop_id;
+
+        $sign = hash_hmac(
+            'sha256',
+            $baseString,
+            $partnerKey
+        );
+
+        $response = Http::get(
+            "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
+            [
+                'partner_id' => $partnerId,
+                'timestamp' => $timestamp,
+                'access_token' => $token->access_token,
+                'shop_id' => (int) $token->shop_id,
+                'sign' => $sign,
+                'offset' => 0,
+                'page_size' => 100,
+                'item_status' => 'NORMAL',
+            ]
+        );
+
+        $items = $response['response']['item'];
+
+        foreach ($items as $itemData) {
+
+            $this->saveItemDetail(
+                $itemData['item_id']
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Produk Shopee berhasil disinkronkan'
+        );
+    }
+
+
+    private function saveItemDetail($itemId)
+    {
+        $token = MarketplaceToken::first();
+
+        $partnerId = config('services.shopee.partner_id');
+        $partnerKey = config('services.shopee.partner_key');
+
+        $path = "/api/v2/product/get_item_base_info";
+
+        $timestamp = time();
+
+        $baseString =
+            $partnerId .
+            $path .
+            $timestamp .
+            $token->access_token .
+            (int) $token->shop_id;
+
+        $sign = hash_hmac(
+            'sha256',
+            $baseString,
+            $partnerKey
+        );
+
+        $response = Http::get(
+            "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
+            [
+                'partner_id' => $partnerId,
+                'timestamp' => $timestamp,
+                'access_token' => $token->access_token,
+                'shop_id' => (int) $token->shop_id,
+                'item_id_list' => $itemId,
+                'sign' => $sign,
+            ]
+        );
+
+        $item =
+            $response['response']['item_list'][0];
+
+        MarketplaceItem::updateOrCreate(
+            [
+                'external_product_id' =>
+                    $item['item_id']
+            ],
+            [
+                'marketplace_id' => 1,
+                'nama_produk' => $item['item_name'],
+                'status' => $item['item_status'],
+                'berat' => $item['weight'],
+                'kategori_id' => $item['category_id'],
+            ]
         );
     }
 
