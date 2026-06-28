@@ -93,6 +93,36 @@ Route::middleware(['auth'])->group(function () {
         [MarketplaceController::class, 'itemInfo']
     );
 
+    Route::get(
+        '/marketplace/products',
+        [MarketplaceController::class, 'products']
+    )->name('marketplace.products');
+
+    Route::get(
+        '/marketplace/mapping',
+        [MarketplaceController::class, 'mapping']
+    )->name('marketplace.mapping');
+
+    Route::get(
+        '/shopee/models',
+        [MarketplaceController::class, 'getModels']
+    );
+
+    Route::get(
+        '/marketplace/mapping',
+        [MarketplaceController::class, 'mapping']
+    );
+
+    Route::post(
+        '/marketplace/mapping',
+        [MarketplaceController::class, 'storeMapping']
+    );
+
+    Route::post(
+        '/marketplace/sync-stock',
+        [MarketplaceController::class, 'syncStock']
+    );
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

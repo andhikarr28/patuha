@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\MarketplaceToken;
 use App\Models\MarketplaceItem;
+use App\Models\VarianBarang;
+use App\Models\MarketplaceItemModel;
+use App\Models\MarketplaceMapping;
 
 
 class MarketplaceController extends Controller
@@ -234,4 +237,144 @@ class MarketplaceController extends Controller
 
         dd('Produk berhasil disimpan');
     }
+
+    public function products()
+    {
+        $products = \App\Models\MarketplaceItem::all();
+
+        return view(
+            'marketplace.products',
+            compact('products')
+        );
+    }
+
+    public function mapping()
+    {
+        $models = MarketplaceItemModel::all();
+
+        $varians = VarianBarang::all();
+
+        return view(
+            'marketplace.mapping',
+            compact(
+                'models',
+                'varians'
+            )
+        );
+    }
+
+    public function getModels()
+    {
+        $token = MarketplaceToken::first();
+
+        $item = MarketplaceItem::first();
+
+        $partnerId = config('services.shopee.partner_id');
+        $partnerKey = config('services.shopee.partner_key');
+
+        $path = "/api/v2/product/get_model_list";
+
+        $timestamp = time();
+
+        $baseString =
+            $partnerId .
+            $path .
+            $timestamp .
+            $token->access_token .
+            $token->shop_id;
+
+        $sign = hash_hmac(
+            'sha256',
+            $baseString,
+            $partnerKey
+        );
+
+        $response = Http::get(
+            "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
+            [
+                'partner_id' => $partnerId,
+                'timestamp' => $timestamp,
+                'access_token' => $token->access_token,
+                'shop_id' => $token->shop_id,
+                'item_id' => $item->external_product_id,
+                'sign' => $sign,
+            ]
+        );
+
+        foreach (
+            $response['response']['model']
+            as $model
+        ) {
+
+            MarketplaceItemModel::updateOrCreate(
+                [
+                    'model_id' => $model['model_id']
+                ],
+                [
+                    'marketplace_item_id' => $item->id,
+
+                    'model_sku' =>
+                        $model['model_sku'],
+
+                    'stok' =>
+                        $model['stock_info_v2']
+                        ['summary_info']
+                        ['total_available_stock']
+                        ?? 0,
+                ]
+            );
+        }
+
+        dd('Model berhasil disimpan');
+    }
+
+    public function storeMapping(Request $request)
+    {
+        MarketplaceMapping::updateOrCreate(
+            [
+                'marketplace_item_model_id' =>
+                    $request->marketplace_item_model_id
+            ],
+            [
+                'varian_id' =>
+                    $request->varian_id
+            ]
+        );
+
+        return back()
+            ->with(
+                'success',
+                'Mapping berhasil disimpan'
+            );
+    }
+
+    public function syncStock()
+    {
+        $models = MarketplaceItemModel::all();
+
+        foreach ($models as $model) {
+
+            $mapping = MarketplaceMapping::where(
+                'marketplace_item_model_id',
+                $model->id
+            )->first();
+
+            if (!$mapping) {
+                continue;
+            }
+
+            VarianBarang::where(
+                'id',
+                $mapping->varian_id
+            )->update([
+                        'stok' => $model->stok
+                    ]);
+        }
+
+        return back()->with(
+            'success',
+            'Sinkronisasi stok berhasil'
+        );
+    }
+
 }
