@@ -10,6 +10,7 @@ use App\Models\VarianBarang;
 use App\Models\MarketplaceItemModel;
 use App\Models\MarketplaceMapping;
 use App\Models\MarketplaceSyncLog;
+use App\Models\Marketplace;
 
 
 class MarketplaceController extends Controller
@@ -29,17 +30,20 @@ class MarketplaceController extends Controller
             MarketplaceSyncLog::latest()
                 ->first();
 
+        $marketplace =
+            Marketplace::first();
+
         return view(
             'marketplace.index',
             compact(
                 'jumlahProduk',
                 'jumlahVarian',
                 'jumlahMapping',
-                'lastSync'
+                'lastSync',
+                'marketplace'
             )
         );
     }
-
     public function auth()
     {
         $partnerId = config(
@@ -410,6 +414,11 @@ class MarketplaceController extends Controller
             'jumlah_varian' => MarketplaceItemModel::count(),
             'sync_at' => now(),
         ]);
+
+        Marketplace::where('id', 1)
+            ->update([
+                'last_sync' => now()
+            ]);
 
         return back()->with(
             'success',

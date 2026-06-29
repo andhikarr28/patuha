@@ -8,13 +8,6 @@
         Detail Pembelian
     </h1>
 
-    <a href="{{ route('detail-pembelian.create') }}"
-       class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl">
-
-        + Tambah Detail
-
-    </a>
-
 </div>
 
 @if(session('success'))
@@ -27,6 +20,51 @@
 
 @endif
 
+{{-- INFORMASI PEMBELIAN --}}
+<div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+
+    <div class="flex justify-between items-start">
+
+        <div>
+
+            <h2 class="text-2xl font-bold mb-4">
+                Informasi Pembelian
+            </h2>
+
+            <p class="mb-2">
+                <span class="font-semibold">No Faktur :</span>
+                {{ $pembelian->no_faktur }}
+            </p>
+
+            <p class="mb-2">
+                <span class="font-semibold">Tanggal :</span>
+                {{ \Carbon\Carbon::parse($pembelian->tanggal_pembelian)->format('d M Y') }}
+            </p>
+
+            <p>
+                <span class="font-semibold">Supplier :</span>
+                {{ $pembelian->supplier->nama_supplier }}
+            </p>
+
+        </div>
+
+        <div class="text-right">
+
+            <p class="text-slate-500 mb-2">
+                Total Netto
+            </p>
+
+            <h2 class="text-5xl font-bold text-green-600">
+                Rp {{ number_format($pembelian->total_netto,0,',','.') }}
+            </h2>
+
+        </div>
+
+    </div>
+
+</div>
+
+{{-- DETAIL BARANG --}}
 <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
 
     <table class="w-full">
@@ -35,14 +73,29 @@
 
             <tr>
 
-                <th class="px-6 py-4 text-left">Faktur</th>
-                <th class="px-6 py-4 text-left">Barang</th>
-                <th class="px-6 py-4 text-left">Varian</th>
-                <th class="px-6 py-4 text-center">Qty</th>
-                <th class="px-6 py-4 text-right">Harga</th>
-                <th class="px-6 py-4 text-right">Diskon</th>
-                <th class="px-6 py-4 text-right">Subtotal</th>
-                <th class="px-6 py-4 text-center">Aksi</th>
+                <th class="px-6 py-4 text-left">
+                    Barang
+                </th>
+
+                <th class="px-6 py-4 text-left">
+                    Varian
+                </th>
+
+                <th class="px-6 py-4 text-center">
+                    Qty
+                </th>
+
+                <th class="px-6 py-4 text-right">
+                    Harga
+                </th>
+
+                <th class="px-6 py-4 text-right">
+                    Diskon
+                </th>
+
+                <th class="px-6 py-4 text-right">
+                    Subtotal
+                </th>
 
             </tr>
 
@@ -53,10 +106,6 @@
             @forelse($detail as $item)
 
             <tr class="border-t hover:bg-slate-50">
-
-                <td class="px-6 py-4">
-                    {{ $item->pembelian->no_faktur }}
-                </td>
 
                 <td class="px-6 py-4">
                     {{ $item->varian->barang->nama_barang }}
@@ -76,43 +125,12 @@
                     Rp {{ number_format($item->harga_satuan,0,',','.') }}
                 </td>
 
-                <td class="px-6 py-4 text-right">
+                <td class="px-6 py-4 text-right text-red-600">
                     Rp {{ number_format($item->diskon,0,',','.') }}
                 </td>
 
                 <td class="px-6 py-4 text-right font-semibold">
                     Rp {{ number_format($item->subtotal,0,',','.') }}
-                </td>
-
-                <td class="px-6 py-4">
-
-                    <div class="flex justify-center gap-2">
-
-                        <a href="{{ route('detail-pembelian.edit',$item) }}"
-                           class="bg-yellow-500 text-white px-4 py-2 rounded-lg">
-
-                            Edit
-
-                        </a>
-
-                        <form action="{{ route('detail-pembelian.destroy',$item) }}"
-                              method="POST">
-
-                            @csrf
-                            @method('DELETE')
-
-                            <button
-                                onclick="return confirm('Yakin hapus detail pembelian?')"
-                                class="bg-red-600 text-white px-4 py-2 rounded-lg">
-
-                                Hapus
-
-                            </button>
-
-                        </form>
-
-                    </div>
-
                 </td>
 
             </tr>
@@ -121,10 +139,10 @@
 
             <tr>
 
-                <td colspan="8"
+                <td colspan="6"
                     class="text-center py-10 text-slate-500">
 
-                    Belum ada data
+                    Belum ada data detail pembelian
 
                 </td>
 
@@ -135,6 +153,47 @@
         </tbody>
 
     </table>
+
+</div>
+
+{{-- RINGKASAN --}}
+<div class="flex justify-end mt-6">
+
+    <div class="bg-white rounded-2xl shadow-lg p-6 w-[400px]">
+
+        <div class="flex justify-between mb-3">
+
+            <span>Total Brutto</span>
+
+            <span>
+                Rp {{ number_format($pembelian->total_brutto,0,',','.') }}
+            </span>
+
+        </div>
+
+        <div class="flex justify-between mb-3 text-red-600">
+
+            <span>Total Diskon</span>
+
+            <span>
+                Rp {{ number_format($pembelian->total_diskon,0,',','.') }}
+            </span>
+
+        </div>
+
+        <hr class="my-4">
+
+        <div class="flex justify-between text-2xl font-bold text-green-600">
+
+            <span>Total Netto</span>
+
+            <span>
+                Rp {{ number_format($pembelian->total_netto,0,',','.') }}
+            </span>
+
+        </div>
+
+    </div>
 
 </div>
 

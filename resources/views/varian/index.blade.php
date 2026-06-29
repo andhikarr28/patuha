@@ -2,146 +2,170 @@
 
 @section('content')
 
-    <div class="flex justify-between items-center mb-6">
+<div class="flex justify-between items-center mb-6">
 
-        <h1 class="text-3xl font-bold">
-            Data Varian Barang
-        </h1>
+    <h1 class="text-3xl font-bold">
+        Data Varian Barang
+    </h1>
 
-        <a href="{{ route('varian.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl">
+    <a href="{{ route('varian.create') }}"
+       class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl">
 
-            + Tambah Varian
+        + Tambah Varian
 
-        </a>
+    </a>
 
-    </div>
+</div>
 
-    @if(session('success'))
+@if(session('success'))
 
-        <div class="bg-green-100 text-green-700 p-4 rounded-xl mb-5">
+<div class="bg-green-100 text-green-700 p-4 rounded-xl mb-5">
 
-            {{ session('success') }}
+    {{ session('success') }}
 
-        </div>
+</div>
 
-    @endif
+@endif
 
-    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden">
 
-        <table class="w-full">
+    <table class="w-full">
 
-            <thead class="bg-slate-100">
+        <thead class="bg-slate-100">
 
-                <tr>
+            <tr>
 
-                    <th class="px-6 py-4 text-left">Barang</th>
-                    <th class="px-6 py-4 text-left">Warna</th>
-                    <th class="px-6 py-4 text-left">Ukuran</th>
-                    <th class="px-6 py-4 text-left">SKU</th>
-                    <th class="px-6 py-4 text-left">Harga Jual</th>
-                    <th class="px-6 py-4 text-left">Stok</th>
-                    <th class="px-6 py-4 text-left">Min Stok</th>
-                    <th class="px-6 py-4 text-center">Aksi</th>
+                <th class="px-6 py-4 text-left">Barang</th>
+                <th class="px-6 py-4 text-left">Warna</th>
+                <th class="px-6 py-4 text-left">Ukuran</th>
+                <th class="px-6 py-4 text-left">SKU</th>
+                <th class="px-6 py-4 text-left">Harga Beli</th>
+                <th class="px-6 py-4 text-left">Harga Jual</th>
+                <th class="px-6 py-4 text-left">Margin</th>
+                <th class="px-6 py-4 text-center">Stok</th>
+                <th class="px-6 py-4 text-center">Min Stok</th>
+                <th class="px-6 py-4 text-center">Aksi</th>
 
-                </tr>
+            </tr>
 
-            </thead>
+        </thead>
 
-            <tbody>
+        <tbody>
 
-                @forelse($varian as $item)
+            @forelse($varian as $item)
 
-                    <tr class="border-t hover:bg-slate-50">
+            <tr class="border-t hover:bg-slate-50">
 
-                        <td class="px-6 py-4">
-                            {{ $item->barang->nama_barang }}
-                        </td>
+                <td class="px-6 py-4">
+                    {{ $item->barang->nama_barang }}
+                </td>
 
-                        <td class="px-6 py-4">
-                            {{ $item->warna }}
-                        </td>
+                <td class="px-6 py-4">
+                    {{ $item->warna }}
+                </td>
 
-                        <td class="px-6 py-4">
-                            {{ $item->ukuran }}
-                        </td>
+                <td class="px-6 py-4">
+                    {{ $item->ukuran }}
+                </td>
 
-                        <td class="px-6 py-4">
-                            {{ $item->sku }}
-                        </td>
+                <td class="px-6 py-4">
+                    {{ $item->sku }}
+                </td>
 
-                        <td class="px-6 py-4">
-                            Rp {{ number_format($item->harga_jual, 0, ',', '.') }}
-                        </td>
+                <td class="px-6 py-4">
+                    Rp {{ number_format($item->harga_beli ?? 0, 0, ',', '.') }}
+                </td>
 
-                        <td class="px-6 py-4">
+                <td class="px-6 py-4">
+                    Rp {{ number_format($item->harga_jual, 0, ',', '.') }}
+                </td>
+
+                <td class="px-6 py-4">
+
+                    <span class="font-semibold text-green-600">
+
+                        Rp {{ number_format(($item->harga_jual ?? 0) - ($item->harga_beli ?? 0), 0, ',', '.') }}
+
+                    </span>
+
+                </td>
+
+                <td class="px-6 py-4 text-center">
+
+                    @if($item->stok <= $item->stok_minimum)
+
+                        <span class="bg-red-100 text-red-600 px-3 py-1 rounded-lg font-semibold">
+
                             {{ $item->stok }}
-                        </td>
 
-                        <td class="px-6 py-4">
+                        </span>
 
-                            @if($item->stok <= $item->stok_minimum)
+                    @else
 
-                                <span class="bg-red-100 text-red-600 px-2 py-1 rounded-lg">
-                                    {{ $item->stok_minimum }}
-                                </span>
+                        {{ $item->stok }}
 
-                            @else
+                    @endif
 
-                                {{ $item->stok_minimum }}
+                </td>
 
-                            @endif
+                <td class="px-6 py-4 text-center">
 
-                        </td>
+                    {{ $item->stok_minimum }}
 
-                        <td class="px-6 py-4">
+                </td>
 
-                            <div class="flex justify-center gap-2">
+                <td class="px-6 py-4">
 
-                                <a href="{{ route('varian.edit', $item) }}"
-                                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
+                    <div class="flex justify-center gap-2">
 
-                                    Edit
+                        <a href="{{ route('varian.edit', $item) }}"
+                           class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
 
-                                </a>
+                            Edit
 
-                                <form action="{{ route('varian.destroy', $item) }}" method="POST">
+                        </a>
 
-                                    @csrf
-                                    @method('DELETE')
+                        <form action="{{ route('varian.destroy', $item) }}"
+                              method="POST">
 
-                                    <button onclick="return confirm('Yakin hapus varian ini?')"
-                                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
+                            @csrf
+                            @method('DELETE')
 
-                                        Hapus
+                            <button
+                                onclick="return confirm('Yakin hapus varian ini?')"
+                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
 
-                                    </button>
+                                Hapus
 
-                                </form>
+                            </button>
 
-                            </div>
+                        </form>
 
-                        </td>
+                    </div>
 
-                    </tr>
+                </td>
 
-                @empty
+            </tr>
 
-                    <tr>
+            @empty
 
-                        <td colspan="8" class="text-center py-10">
+            <tr>
 
-                            Belum ada data
+                <td colspan="10"
+                    class="text-center py-10">
 
-                        </td>
+                    Belum ada data
 
-                    </tr>
+                </td>
 
-                @endforelse
+            </tr>
 
-            </tbody>
+            @endforelse
 
-        </table>
+        </tbody>
 
-    </div>
+    </table>
+
+</div>
 
 @endsection

@@ -23,11 +23,11 @@ class DetailPenjualanController extends Controller
         $detail = DetailPenjualan::with([
             'varian.barang'
         ])
-        ->where(
-            'penjualan_id',
-            $penjualan->id
-        )
-        ->get();
+            ->where(
+                'penjualan_id',
+                $penjualan->id
+            )
+            ->get();
 
         return view(
             'detail-penjualan.index',
@@ -38,22 +38,33 @@ class DetailPenjualanController extends Controller
         );
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $penjualan = Penjualan::all();
+        $penjualan = Penjualan::findOrFail(
+            $request->penjualan_id
+        );
 
         $varian = VarianBarang::with('barang')
+            ->get();
+
+        $detail = DetailPenjualan::with(
+            'varian.barang'
+        )
+            ->where(
+                'penjualan_id',
+                $penjualan->id
+            )
             ->get();
 
         return view(
             'detail-penjualan.create',
             compact(
                 'penjualan',
-                'varian'
+                'varian',
+                'detail'
             )
         );
     }
-
     public function store(Request $request)
     {
         $request->validate([
@@ -102,7 +113,7 @@ class DetailPenjualanController extends Controller
                 'detail-penjualan.index',
                 [
                     'penjualan_id' =>
-                    $request->penjualan_id
+                        $request->penjualan_id
                 ]
             )
             ->with(
@@ -201,7 +212,7 @@ class DetailPenjualanController extends Controller
                 'detail-penjualan.index',
                 [
                     'penjualan_id' =>
-                    $request->penjualan_id
+                        $request->penjualan_id
                 ]
             )
             ->with(
@@ -237,7 +248,7 @@ class DetailPenjualanController extends Controller
                 'detail-penjualan.index',
                 [
                     'penjualan_id' =>
-                    $penjualanId
+                        $penjualanId
                 ]
             )
             ->with(
@@ -256,8 +267,8 @@ class DetailPenjualanController extends Controller
 
         $total =
             $penjualan
-            ->detailPenjualan()
-            ->sum('subtotal');
+                ->detailPenjualan()
+                ->sum('subtotal');
 
         $penjualan->update([
             'total' => $total

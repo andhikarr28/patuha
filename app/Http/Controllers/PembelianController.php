@@ -24,7 +24,16 @@ class PembelianController extends Controller
     {
         $supplier = Supplier::all();
 
-        return view('pembelian.create', compact('supplier'));
+        $varian = \App\Models\VarianBarang::with('barang')
+            ->get();
+
+        return view(
+            'pembelian.create',
+            compact(
+                'supplier',
+                'varian'
+            )
+        );
     }
 
     /**
@@ -36,18 +45,65 @@ class PembelianController extends Controller
             'no_faktur' => 'required',
             'tanggal_pembelian' => 'required',
             'supplier_id' => 'required',
+            'cart' => 'required|array|min:1'
         ]);
 
-        Pembelian::create([
+        $pembelian = Pembelian::create([
             'no_faktur' => $request->no_faktur,
             'tanggal_pembelian' => $request->tanggal_pembelian,
             'supplier_id' => $request->supplier_id,
             'user_id' => auth()->id(),
+            'total_brutto' => 0,
+            'total_diskon' => 0,
+            'total_netto' => 0,
+        ]);
+
+        $totalBrutto = 0;
+        $totalDiskon = 0;
+
+        foreach ($request->cart as $item) {
+
+            $varian = \App\Models\VarianBarang::findOrFail(
+                $item['varian_id']
+            );
+
+            $subtotal =
+                ($item['qty'] * $item['harga_beli']);
+
+            \App\Models\DetailPembelian::create([
+                'pembelian_id' => $pembelian->id,
+                'varian_id' => $item['varian_id'],
+                'qty' => $item['qty'],
+                'harga_satuan' => $item['harga_beli'],
+                'diskon' => $item['diskon'],
+                'subtotal' => $subtotal
+            ]);
+
+            $varian->increment(
+                'stok',
+                $item['qty']
+            );
+
+            $varian->update([
+                'harga_beli' => $item['harga_beli']
+            ]);
+
+            $totalBrutto += $subtotal;
+            $totalDiskon += $item['diskon'];
+        }
+
+        $pembelian->update([
+            'total_brutto' => $totalBrutto,
+            'total_diskon' => $totalDiskon,
+            'total_netto' => $totalBrutto - $totalDiskon
         ]);
 
         return redirect()
             ->route('pembelian.index')
-            ->with('success', 'Pembelian berhasil dibuat');
+            ->with(
+                'success',
+                'Pembelian berhasil disimpan'
+            );
     }
 
     /**

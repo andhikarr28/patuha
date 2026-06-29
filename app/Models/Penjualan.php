@@ -17,6 +17,7 @@ class Penjualan extends Model
         'channel',
         'total',
         'user_id',
+        'metode_pembayaran',
     ];
 
     public function detailPenjualan()

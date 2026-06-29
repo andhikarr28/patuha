@@ -37,6 +37,7 @@ class VarianBarangController extends Controller
             'barang_id' => 'required',
             'warna' => 'required',
             'ukuran' => 'required',
+            'harga_beli' => 'required|numeric',
             'harga_jual' => 'required|numeric',
             'stok' => 'required|integer',
         ]);
@@ -46,6 +47,7 @@ class VarianBarangController extends Controller
             'warna' => $request->warna,
             'ukuran' => $request->ukuran,
             'sku' => $request->sku,
+            'harga_beli' => $request->harga_beli,
             'harga_jual' => $request->harga_jual,
             'stok' => $request->stok,
             'stok_minimum' => $request->stok_minimum,
@@ -83,6 +85,7 @@ class VarianBarangController extends Controller
             'barang_id' => 'required',
             'warna' => 'required',
             'ukuran' => 'required',
+            'harga_beli' => 'required|numeric',
             'harga_jual' => 'required|numeric',
             'stok' => 'required|integer',
         ]);
@@ -92,6 +95,7 @@ class VarianBarangController extends Controller
             'warna' => $request->warna,
             'ukuran' => $request->ukuran,
             'sku' => $request->sku,
+            'harga_beli' => $request->harga_beli,
             'harga_jual' => $request->harga_jual,
             'stok' => $request->stok,
             'stok_minimum' => $request->stok_minimum,

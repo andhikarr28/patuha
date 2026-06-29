@@ -30,13 +30,36 @@
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow">
+
             <p class="text-gray-500">
-                Sinkronisasi Terakhir
+                Status Marketplace
             </p>
 
-            <h2 class="font-bold">
-                {{ $lastSync?->sync_at?->format('d-m-Y H:i') ?? '-' }}
-            </h2>
+            @if($marketplace?->status)
+
+                <h2 class="text-green-600 font-bold">
+                    ● Terhubung
+                </h2>
+
+                <p class="text-sm text-gray-500 mt-2">
+
+                    Sync:
+
+                    {{ $marketplace->last_sync
+                ? \Carbon\Carbon::parse($marketplace->last_sync)->format('d-m-Y H:i')
+                : 'Belum Pernah'
+                    }}
+
+                </p>
+
+            @else
+
+                <h2 class="text-red-600 font-bold">
+                    ● Tidak Terhubung
+                </h2>
+
+            @endif
+
         </div>
 
     </div>

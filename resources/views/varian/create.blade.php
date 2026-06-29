@@ -85,6 +85,18 @@
                 </div>
 
                 <div class="mb-5">
+
+                    <label class="block mb-2 font-medium">
+
+                        Harga Beli
+
+                    </label>
+
+                    <input type="number" name="harga_beli" class="w-full border rounded-lg p-3">
+
+                </div>
+
+                <div class="mb-5">
                     <label class="block mb-2 font-medium">
                         Harga Jual
                     </label>

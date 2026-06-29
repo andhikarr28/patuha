@@ -19,6 +19,7 @@ class VarianBarang extends Model
         'harga_jual',
         'stok',
         'stok_minimum',
+        'harga_beli',
     ];
 
     public function barang()
