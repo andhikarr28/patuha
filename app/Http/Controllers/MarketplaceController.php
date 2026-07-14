@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\MarketplaceToken;
@@ -11,7 +13,10 @@ use App\Models\MarketplaceItemModel;
 use App\Models\MarketplaceMapping;
 use App\Models\MarketplaceSyncLog;
 use App\Models\Marketplace;
-
+use App\Models\MarketplaceOrderLog;
+use App\Models\Penjualan;
+use App\Models\DetailPenjualan;
+use App\Models\StokLog;
 
 class MarketplaceController extends Controller
 {
@@ -540,4 +545,356 @@ class MarketplaceController extends Controller
         );
     }
 
+    public function getOrder()
+    {
+        $token = MarketplaceToken::first();
+
+        $partnerId = config('services.shopee.partner_id');
+        $partnerKey = config('services.shopee.partner_key');
+
+        $path = "/api/v2/order/get_order_list";
+
+        $timestamp = time();
+
+        $baseString =
+            $partnerId .
+            $path .
+            $timestamp .
+            $token->access_token .
+            (int) $token->shop_id;
+
+        $sign = hash_hmac(
+            'sha256',
+            $baseString,
+            $partnerKey
+        );
+
+        $response = Http::get(
+            "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
+            [
+                'partner_id' => $partnerId,
+                'timestamp' => $timestamp,
+                'access_token' => $token->access_token,
+                'shop_id' => (int) $token->shop_id,
+                'sign' => $sign,
+                'time_range_field' => 'create_time',
+                'time_from' => strtotime('-7 days'),
+                'time_to' => time(),
+                'page_size' => 10,
+            ]
+        );
+
+        $data = $response->json();
+
+        $orderSnList = collect($data['response']['order_list'])
+            ->pluck('order_sn')
+            ->toArray();
+
+        return $orderSnList;
+    }
+
+    public function getOrderDetail(array $orderSnList)
+    {
+        $token = MarketplaceToken::first();
+
+        $partnerId = config('services.shopee.partner_id');
+        $partnerKey = config('services.shopee.partner_key');
+
+        $path = "/api/v2/order/get_order_detail";
+
+        $timestamp = time();
+
+        $baseString =
+            $partnerId .
+            $path .
+            $timestamp .
+            $token->access_token .
+            (int) $token->shop_id;
+
+        $sign = hash_hmac(
+            'sha256',
+            $baseString,
+            $partnerKey
+        );
+
+        $response = Http::get(
+            "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
+            [
+                'partner_id' => $partnerId,
+                'timestamp' => $timestamp,
+                'access_token' => $token->access_token,
+                'shop_id' => (int) $token->shop_id,
+                'sign' => $sign,
+                'order_sn_list' => implode(',', $orderSnList),
+                'response_optional_fields' =>
+                    'item_list,total_amount,payment_method'
+            ]
+        );
+        return $response->json();
+    }
+
+
+
+    public function syncOrder()
+    {
+        $orderSnList = $this->getOrder();
+
+        $data = $this->getOrderDetail(
+            $orderSnList
+        );
+
+        $hasil = [];
+
+        foreach (
+            $data['response']['order_list']
+            as $order
+        ) {
+
+            $orderSn =
+                $order['order_sn'];
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cek Sudah Pernah Sync
+            |--------------------------------------------------------------------------
+            */
+            $alreadySynced =
+                MarketplaceOrderLog::where(
+                    'order_sn',
+                    $orderSn
+                )->exists();
+
+            if ($alreadySynced) {
+
+                $hasil[] = [
+                    'order_sn' => $orderSn,
+                    'status' => 'SUDAH PERNAH SYNC'
+                ];
+
+                continue;
+            }
+
+            DB::beginTransaction();
+
+            try {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Buat Header Penjualan
+                |--------------------------------------------------------------------------
+                */
+                $penjualan =
+                    Penjualan::create([
+                        'no_nota' =>
+                            'SHP-' . $orderSn,
+
+                        'tanggal_penjualan' =>
+                            now(),
+
+                        'channel' =>
+                            'shopee',
+
+                        'total' =>
+                            0,
+
+                        'user_id' =>
+                            1,
+
+                        'metode_pembayaran' =>
+                            $order['payment_method']
+                            ?? 'Shopee',
+                    ]);
+
+                $totalPenjualan = 0;
+
+                foreach (
+                    $order['item_list']
+                    as $item
+                ) {
+
+                    $modelId =
+                        $item['model_id'];
+
+                    $itemModel =
+                        MarketplaceItemModel::where(
+                            'model_id',
+                            $modelId
+                        )->first();
+
+                    if (!$itemModel) {
+                        continue;
+                    }
+
+                    $mapping =
+                        MarketplaceMapping::where(
+                            'marketplace_item_model_id',
+                            $itemModel->id
+                        )->first();
+
+                    if (!$mapping) {
+                        continue;
+                    }
+
+                    $varian =
+                        VarianBarang::with('barang')
+                            ->find(
+                                $mapping->varian_id
+                            );
+
+                    if (!$varian) {
+                        continue;
+                    }
+
+                    $qty =
+                        $item['model_quantity_purchased'];
+
+                    $harga =
+                        $item['model_discounted_price'];
+
+                    $subtotal =
+                        $qty * $harga;
+
+                    $stokSebelum =
+                        $varian->stok;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Detail Penjualan
+                    |--------------------------------------------------------------------------
+                    */
+                    DetailPenjualan::create([
+                        'penjualan_id' =>
+                            $penjualan->id,
+
+                        'varian_id' =>
+                            $varian->id,
+
+                        'qty' =>
+                            $qty,
+
+                        'harga' =>
+                            $harga,
+
+                        'subtotal' =>
+                            $subtotal,
+                    ]);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Kurangi Stok
+                    |--------------------------------------------------------------------------
+                    */
+                    $varian->decrement(
+                        'stok',
+                        $qty
+                    );
+
+                    $stokSesudah =
+                        $stokSebelum - $qty;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Stok Log
+                    |--------------------------------------------------------------------------
+                    */
+                    StokLog::create([
+                        'varian_id' =>
+                            $varian->id,
+
+                        'tipe_transaksi' =>
+                            'penjualan',
+
+                        'qty' =>
+                            $qty,
+
+                        'stok_sebelum' =>
+                            $stokSebelum,
+
+                        'stok_sesudah' =>
+                            $stokSesudah,
+
+                        'referensi' =>
+                            'SHP-' . $orderSn,
+                    ]);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Hitung Total
+                    |--------------------------------------------------------------------------
+                    */
+                    $totalPenjualan +=
+                        $subtotal;
+
+                    $hasil[] = [
+                        'order_sn' =>
+                            $orderSn,
+
+                        'nama_barang' =>
+                            $varian
+                                ->barang
+                                ->nama_barang,
+
+                        'qty' =>
+                            $qty,
+
+                        'harga' =>
+                            $harga,
+
+                        'subtotal' =>
+                            $subtotal,
+
+                        'stok_sebelum' =>
+                            $stokSebelum,
+
+                        'stok_sesudah' =>
+                            $stokSesudah,
+                    ];
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update Total Header
+                |--------------------------------------------------------------------------
+                */
+                $penjualan->update([
+                    'total' =>
+                        $totalPenjualan
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Marketplace Order Log
+                |--------------------------------------------------------------------------
+                */
+                MarketplaceOrderLog::create([
+                    'order_sn' =>
+                        $orderSn,
+
+                    'status' =>
+                        $order['order_status'],
+
+                    'synced_at' =>
+                        now(),
+                ]);
+
+                DB::commit();
+
+            } catch (\Exception $e) {
+
+                DB::rollBack();
+
+                $hasil[] = [
+                    'order_sn' =>
+                        $orderSn,
+
+                    'error' =>
+                        $e->getMessage()
+                ];
+            }
+        }
+
+        return response()->json(
+            $hasil
+        );
+    }
 }

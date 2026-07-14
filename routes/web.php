@@ -128,6 +128,21 @@ Route::middleware(['auth'])->group(function () {
         [MarketplaceController::class, 'getModels']
     )->name('marketplace.sync-models');
 
+    Route::get(
+        '/marketplace/get-order',
+        [MarketplaceController::class, 'getOrder']
+    )->name('marketplace.get-order');
+
+    Route::get(
+        '/marketplace/get-order-detail',
+        [MarketplaceController::class, 'getOrderDetail']
+    )->name('marketplace.get-order-detail');
+
+    Route::get(
+        '/marketplace/sync-order',
+        [MarketplaceController::class, 'syncOrder']
+    )->name('marketplace.sync-order');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
