@@ -121,7 +121,7 @@ class MarketplaceController extends Controller
         dd('Token berhasil disimpan');
     }
 
-    public function shopInfo()
+    public function getShopInfo()
     {
         $token = MarketplaceToken::first();
 
@@ -161,7 +161,7 @@ class MarketplaceController extends Controller
         );
     }
 
-    public function getItems()
+    public function syncProductsFromShopee()
     {
         $token = MarketplaceToken::first();
 
@@ -205,7 +205,7 @@ class MarketplaceController extends Controller
         );
     }
 
-    public function itemInfo()
+    public function getProductInfo()
     {
         $token = MarketplaceToken::first();
 
@@ -269,7 +269,7 @@ class MarketplaceController extends Controller
         dd('Produk berhasil disimpan');
     }
 
-    public function products()
+    public function showProducts()
     {
         $products = \App\Models\MarketplaceItem::all();
 
@@ -279,7 +279,7 @@ class MarketplaceController extends Controller
         );
     }
 
-    public function mapping()
+    public function showMappings()
     {
         $models = MarketplaceItemModel::all();
 
@@ -294,7 +294,7 @@ class MarketplaceController extends Controller
         );
     }
 
-    public function getModels()
+    public function syncVariantsFromShopee()
     {
         $token = MarketplaceToken::first();
 
@@ -340,27 +340,18 @@ class MarketplaceController extends Controller
                 continue;
             }
 
-            foreach (
-                $response['response']['model']
-                as $model
-            ) {
+            foreach ($response['response']['model'] as $model) {
 
                 MarketplaceItemModel::updateOrCreate(
                     [
-                        'model_id' =>
-                            $model['model_id']
+                        'model_id' => $model['model_id']
                     ],
                     [
-                        'marketplace_item_id' =>
-                            $item->id,
-
-                        'model_sku' =>
-                            $model['model_sku'],
-
-                        'stok' =>
-                            $model['stock_info_v2']
-                            ['summary_info']
-                            ['total_available_stock']
+                        'marketplace_item_id' => $item->id,
+                        'model_sku' => $model['model_sku'],
+                        'stok' => $model['stock_info_v2']
+                        ['summary_info']
+                        ['total_available_stock']
                             ?? 0,
                     ]
                 );
@@ -390,7 +381,7 @@ class MarketplaceController extends Controller
             );
     }
 
-    public function syncStock()
+    public function syncMarketplaceStockToLocal()
     {
         $models = MarketplaceItemModel::all();
 
@@ -545,7 +536,7 @@ class MarketplaceController extends Controller
         );
     }
 
-    public function getOrder()
+    public function getShopeeOrderList()
     {
         $token = MarketplaceToken::first();
 
@@ -593,7 +584,7 @@ class MarketplaceController extends Controller
         return $orderSnList;
     }
 
-    public function getOrderDetail(array $orderSnList)
+    public function getShopeeOrderDetails(array $orderSnList)
     {
         $token = MarketplaceToken::first();
 
@@ -635,11 +626,11 @@ class MarketplaceController extends Controller
 
 
 
-    public function syncOrder()
+    public function syncOrdersToLocal()
     {
-        $orderSnList = $this->getOrder();
+        $orderSnList = $this->getShopeeOrderList();
 
-        $data = $this->getOrderDetail(
+        $data = $this->getShopeeOrderDetails(
             $orderSnList
         );
 
@@ -652,6 +643,55 @@ class MarketplaceController extends Controller
 
             $orderSn =
                 $order['order_sn'];
+
+            /*
+            |--------------------------------------------------------------------------
+            | Abaikan Order Cancelled
+            |--------------------------------------------------------------------------
+            */
+            if (
+                in_array(
+                    $order['order_status'],
+                    [
+                        'CANCELLED',
+                        'IN_CANCEL'
+                    ]
+                )
+            ) {
+
+                $exists =
+                    MarketplaceOrderLog::where(
+                        'order_sn',
+                        $orderSn
+                    )->exists();
+
+                if (!$exists) {
+
+                    MarketplaceOrderLog::create([
+                        'order_sn' =>
+                            $orderSn,
+
+                        'status' =>
+                            'CANCELLED',
+
+                        'synced_at' =>
+                            now(),
+                    ]);
+                }
+
+                $hasil[] = [
+                    'order_sn' =>
+                        $orderSn,
+
+                    'status' =>
+                        'CANCELLED',
+
+                    'keterangan' =>
+                        'ORDER DIABAIKAN'
+                ];
+
+                continue;
+            }
 
             /*
             |--------------------------------------------------------------------------
@@ -673,8 +713,6 @@ class MarketplaceController extends Controller
 
                 continue;
             }
-
-
 
             DB::beginTransaction();
 
@@ -900,7 +938,7 @@ class MarketplaceController extends Controller
         );
     }
 
-    public function syncLocalOrder()
+    public function syncLocalStockToShopee()
     {
         $token = MarketplaceToken::first();
 
@@ -1019,7 +1057,7 @@ class MarketplaceController extends Controller
                 . "&access_token={$token->access_token}"
                 . "&shop_id={$token->shop_id}"
                 . "&sign={$sign}";
-                
+
             $response = Http::post(
                 $url,
                 $payload

@@ -48,7 +48,7 @@
                     {{ $marketplace->last_sync
                 ? \Carbon\Carbon::parse($marketplace->last_sync)->format('d-m-Y H:i')
                 : 'Belum Pernah'
-                    }}
+                            }}
 
                 </p>
 
@@ -64,61 +64,66 @@
 
     </div>
 
-    <div class="bg-white rounded-xl shadow p-6">
+    <div class="flex flex-wrap gap-4">
 
-        <h2 class="text-xl font-bold mb-4">
-            Shopee Integration
-        </h2>
+        <a href="{{ route('shopee.auth') }}" class="bg-orange-500 text-white px-4 py-2 rounded">
+            Hubungkan Shopee
+        </a>
 
-        <div class="flex flex-wrap gap-4">
+        <form action="{{ route('marketplace.sync.products') }}" method="POST">
+            @csrf
 
-            <a href="{{ route('shopee.auth') }}" class="bg-orange-500 text-white px-4 py-2 rounded">
-
-                Hubungkan Shopee
-
-            </a>
-
-            <a href="{{ route('marketplace.sync-products') }}" class="bg-indigo-500 text-white px-4 py-2 rounded">
+            <button class="bg-indigo-500 text-white px-4 py-2 rounded">
                 Sinkron Produk
-            </a>
+            </button>
 
-            <form action="{{ route('marketplace.sync-models') }}" method="POST">
+        </form>
 
-                @csrf
+        <form action="{{ route('marketplace.sync.variants') }}" method="POST">
+            @csrf
 
-                <button class="bg-purple-500 text-white px-4 py-2 rounded">
+            <button class="bg-purple-500 text-white px-4 py-2 rounded">
+                Sinkron Variasi
+            </button>
 
-                    Sinkron Variasi
+        </form>
 
-                </button>
+        <a href="{{ route('marketplace.products') }}" class="bg-blue-500 text-white px-4 py-2 rounded">
+            Produk Shopee
+        </a>
 
-            </form>
+        <a href="{{ route('marketplace.mappings') }}" class="bg-yellow-500 text-white px-4 py-2 rounded">
+            Mapping SKU
+        </a>
 
-            <a href="{{ url('/marketplace/products') }}" class="bg-blue-500 text-white px-4 py-2 rounded">
+        <form action="{{ route('marketplace.sync.stocks') }}" method="POST">
+            @csrf
 
-                Produk Shopee
+            <button class="bg-green-500 text-white px-4 py-2 rounded">
+                Shopee → Lokal
+            </button>
 
-            </a>
+        </form>
 
-            <a href="{{ url('/marketplace/mapping') }}" class="bg-yellow-500 text-white px-4 py-2 rounded">
+        <form action="{{ route('marketplace.sync.local-stocks') }}" method="POST">
+            @csrf
 
-                Mapping SKU
+            <button class="bg-red-500 text-white px-4 py-2 rounded">
+                Lokal → Shopee
+            </button>
 
-            </a>
+        </form>
 
-            <form action="{{ route('marketplace.sync-stock') }}" method="POST">
+        <form action="{{ route('marketplace.sync.orders') }}" method="POST">
+            @csrf
 
-                @csrf
+            <button class="bg-cyan-500 text-white px-4 py-2 rounded">
+                    Take Order From Shopee
+            </button>
 
-                <button class="bg-green-500 text-white px-4 py-2 rounded">
+        </form>
 
-                    Sinkronisasi Stok
-
-                </button>
-
-            </form>
-
-        </div>
+    </div>
 
     </div>
 

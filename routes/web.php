@@ -78,75 +78,48 @@ Route::middleware(['auth'])->group(function () {
         [MarketplaceController::class, 'callback']
     )->name('shopee.callback');
 
-    Route::get(
-        '/shopee/shop-info',
-        [MarketplaceController::class, 'shopInfo']
-    );
+    Route::prefix('marketplace')->group(function () {
 
-    Route::get(
-        '/shopee/items',
-        [MarketplaceController::class, 'getItems']
-    );
+        Route::get(
+            '/products',
+            [MarketplaceController::class, 'showProducts']
+        )->name('marketplace.products');
 
-    Route::get(
-        '/shopee/item-info',
-        [MarketplaceController::class, 'itemInfo']
-    );
+        Route::get(
+            '/mappings',
+            [MarketplaceController::class, 'showMappings']
+        )->name('marketplace.mappings');
 
-    Route::get(
-        '/marketplace/products',
-        [MarketplaceController::class, 'products']
-    )->name('marketplace.products');
+        Route::post(
+            '/mappings',
+            [MarketplaceController::class, 'storeMapping']
+        )->name('marketplace.mappings.store');
 
-    Route::get(
-        '/marketplace/mapping',
-        [MarketplaceController::class, 'mapping']
-    )->name('marketplace.mapping');
+        Route::post(
+            '/sync/products',
+            [MarketplaceController::class, 'syncProducts']
+        )->name('marketplace.sync.products');
 
-    Route::get(
-        '/marketplace/mapping',
-        [MarketplaceController::class, 'mapping']
-    );
+        Route::post(
+            '/sync/variants',
+            [MarketplaceController::class, 'syncVariantsFromShopee']
+        )->name('marketplace.sync.variants');
 
-    Route::post(
-        '/marketplace/mapping',
-        [MarketplaceController::class, 'storeMapping']
-    );
+        Route::post(
+            '/sync/stocks',
+            [MarketplaceController::class, 'syncMarketplaceStockToLocal']
+        )->name('marketplace.sync.stocks');
 
-    Route::post(
-        '/marketplace/sync-stock',
-        [MarketplaceController::class, 'syncStock']
-    )->name('marketplace.sync-stock');
+        Route::post(
+            '/sync/orders',
+            [MarketplaceController::class, 'syncOrdersToLocal']
+        )->name('marketplace.sync.orders');
 
-    Route::get(
-        '/marketplace/sync-products',
-        [MarketplaceController::class, 'syncProducts']
-    )->name('marketplace.sync-products');
-
-    Route::post(
-        '/marketplace/sync-models',
-        [MarketplaceController::class, 'getModels']
-    )->name('marketplace.sync-models');
-
-    Route::get(
-        '/marketplace/get-order',
-        [MarketplaceController::class, 'getOrder']
-    )->name('marketplace.get-order');
-
-    Route::get(
-        '/marketplace/get-order-detail',
-        [MarketplaceController::class, 'getOrderDetail']
-    )->name('marketplace.get-order-detail');
-
-    Route::get(
-        '/marketplace/sync-order',
-        [MarketplaceController::class, 'syncOrder']
-    )->name('marketplace.sync-order');
-
-    Route::get(
-        '/marketplace/sync-local-order',
-        [MarketplaceController::class, 'syncLocalOrder']
-    )->name('marketplace.sync-local-order');
+        Route::post(
+            '/sync/local-stocks',
+            [MarketplaceController::class, 'syncLocalStockToShopee']
+        )->name('marketplace.sync.local-stocks');
+    });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
