@@ -674,6 +674,8 @@ class MarketplaceController extends Controller
                 continue;
             }
 
+
+
             DB::beginTransaction();
 
             try {
@@ -895,6 +897,147 @@ class MarketplaceController extends Controller
 
         return response()->json(
             $hasil
+        );
+    }
+
+    public function syncLocalOrder()
+    {
+        $token = MarketplaceToken::first();
+
+        $partnerId = config('services.shopee.partner_id');
+        $partnerKey = config('services.shopee.partner_key');
+
+        $path = "/api/v2/product/update_stock";
+
+        $hasil = [];
+
+        $varianList = VarianBarang::all();
+
+        foreach ($varianList as $varian) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cari Mapping
+            |--------------------------------------------------------------------------
+            */
+            $mapping = MarketplaceMapping::where(
+                'varian_id',
+                $varian->id
+            )->first();
+
+            if (!$mapping) {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cari Item Model
+            |--------------------------------------------------------------------------
+            */
+            $itemModel = MarketplaceItemModel::find(
+                $mapping->marketplace_item_model_id
+            );
+
+            if (!$itemModel) {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cari Item Shopee
+            |--------------------------------------------------------------------------
+            */
+            $item = MarketplaceItem::find(
+                $itemModel->marketplace_item_id
+            );
+
+            if (!$item) {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Data Shopee
+            |--------------------------------------------------------------------------
+            */
+            $itemId = (int) $item->external_product_id;
+
+            $modelId = (int) $itemModel->model_id;
+
+            $stok = (int) $varian->stok;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Signature
+            |--------------------------------------------------------------------------
+            */
+            $timestamp = time();
+
+            $baseString =
+                $partnerId .
+                $path .
+                $timestamp .
+                $token->access_token .
+                (int) $token->shop_id;
+
+            $sign = hash_hmac(
+                'sha256',
+                $baseString,
+                $partnerKey
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Payload
+            |--------------------------------------------------------------------------
+            */
+            $payload = [
+                'item_id' => $itemId,
+
+                'stock_list' => [
+                    [
+                        'model_id' => $modelId,
+
+                        'seller_stock' => [
+                            [
+                                'stock' => $stok
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+
+            /*
+            |--------------------------------------------------------------------------
+            | Request ke Shopee
+            |--------------------------------------------------------------------------
+            */
+            $url =
+                "https://openplatform.sandbox.test-stable.shopee.sg{$path}"
+                . "?partner_id={$partnerId}"
+                . "&timestamp={$timestamp}"
+                . "&access_token={$token->access_token}"
+                . "&shop_id={$token->shop_id}"
+                . "&sign={$sign}";
+                
+            $response = Http::post(
+                $url,
+                $payload
+            );
+
+            $hasil[] = [
+                'varian_id' => $varian->id,
+                'nama_barang' => $varian->nama_varian ?? null,
+                'item_id' => $itemId,
+                'model_id' => $modelId,
+                'stok_lokal' => $stok,
+                'response' => $response->json(),
+            ];
+        }
+
+        dd(
+            $response->status(),
+            $response->json()
         );
     }
 }
