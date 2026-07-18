@@ -10,6 +10,8 @@ class MarketplaceSyncLog extends Model
 
     protected $fillable = [
         'marketplace_id',
+        'aktivitas',
+        'arah_sync',
         'jumlah_produk',
         'jumlah_varian',
         'sync_at',

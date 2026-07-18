@@ -21,11 +21,28 @@ class VarianBarangController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
-        $barang = Barang::all();
+        $barang = Barang::orderBy('nama_barang')
+            ->get();
 
-        return view('varian.create', compact('barang'));
+        $selectedBarang = null;
+
+        if ($request->filled('barang_id')) {
+
+            $selectedBarang = Barang::findOrFail(
+                $request->barang_id
+            );
+
+        }
+
+        return view(
+            'varian.create',
+            compact(
+                'barang',
+                'selectedBarang'
+            )
+        );
     }
 
     /**
@@ -42,20 +59,23 @@ class VarianBarangController extends Controller
             'stok' => 'required|integer',
         ]);
 
-        VarianBarang::create([
+        $varian = VarianBarang::create([
             'barang_id' => $request->barang_id,
             'warna' => $request->warna,
             'ukuran' => $request->ukuran,
             'sku' => $request->sku,
-            'harga_beli' => $request->harga_beli,
+            'harga_beli' => $request->harga_beli ?? 0,
             'harga_jual' => $request->harga_jual,
-            'stok' => $request->stok,
+            'stok' => 0,
             'stok_minimum' => $request->stok_minimum,
         ]);
 
         return redirect()
-            ->route('varian.index')
-            ->with('success', 'Varian berhasil ditambahkan');
+            ->route('barang.show', $varian->barang_id)
+            ->with(
+                'success',
+                'Varian berhasil ditambahkan.'
+            );
     }
 
     /**
@@ -71,9 +91,12 @@ class VarianBarangController extends Controller
      */
     public function edit(VarianBarang $varian)
     {
-        $barang = Barang::all();
+        $varian->load('barang');
 
-        return view('varian.edit', compact('varian', 'barang'));
+        return view(
+            'varian.edit',
+            compact('varian')
+        );
     }
 
     /**
@@ -102,8 +125,11 @@ class VarianBarangController extends Controller
         ]);
 
         return redirect()
-            ->route('varian.index')
-            ->with('success', 'Varian berhasil diupdate');
+            ->route('barang.show', $varian->barang_id)
+            ->with(
+                'success',
+                'Varian berhasil diperbarui.'
+            );
     }
     /**
      * Remove the specified resource from storage.

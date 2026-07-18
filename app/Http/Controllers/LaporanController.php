@@ -2,135 +2,203 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Penjualan;
 use App\Models\Pembelian;
+use App\Models\Penjualan;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+
 class LaporanController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN PENJUALAN
+    |--------------------------------------------------------------------------
+    */
+
     public function penjualan(Request $request)
     {
-        $query = Penjualan::query();
+        /*
+        | Jika user belum memilih tanggal,
+        | default = awal sampai akhir bulan berjalan.
+        */
 
-        if ($request->tanggal_awal && $request->tanggal_akhir) {
+        $tanggalAwal = $request->tanggal_awal
+            ?? now()->startOfMonth()->toDateString();
 
-            $query->whereBetween(
+        $tanggalAkhir = $request->tanggal_akhir
+            ?? now()->endOfMonth()->toDateString();
+
+        $penjualan = Penjualan::query()
+            ->whereBetween(
                 'tanggal_penjualan',
                 [
-                    $request->tanggal_awal,
-                    $request->tanggal_akhir
+                    $tanggalAwal,
+                    $tanggalAkhir
                 ]
-            );
-        }
-
-        $penjualan = $query
-            ->latest()
+            )
+            ->latest('tanggal_penjualan')
+            ->latest('id')
             ->get();
 
         $total = $penjualan->sum('total');
+
+        $jumlahTransaksi = $penjualan->count();
+
+        $rataRata = $jumlahTransaksi > 0
+            ? $total / $jumlahTransaksi
+            : 0;
 
         return view(
             'laporan.penjualan',
             compact(
                 'penjualan',
-                'total'
+                'total',
+                'jumlahTransaksi',
+                'rataRata',
+                'tanggalAwal',
+                'tanggalAkhir'
             )
         );
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN PEMBELIAN
+    |--------------------------------------------------------------------------
+    */
+
     public function pembelian(Request $request)
     {
-        $query = Pembelian::with('supplier');
+        $tanggalAwal = $request->tanggal_awal
+            ?? now()->startOfMonth()->toDateString();
 
-        if ($request->tanggal_awal && $request->tanggal_akhir) {
+        $tanggalAkhir = $request->tanggal_akhir
+            ?? now()->endOfMonth()->toDateString();
 
-            $query->whereBetween(
+        $pembelian = Pembelian::with('supplier')
+            ->whereBetween(
                 'tanggal_pembelian',
                 [
-                    $request->tanggal_awal,
-                    $request->tanggal_akhir
+                    $tanggalAwal,
+                    $tanggalAkhir
                 ]
-            );
-        }
-
-        $pembelian = $query
-            ->latest()
+            )
+            ->latest('tanggal_pembelian')
+            ->latest('id')
             ->get();
 
         $total = $pembelian->sum('total_netto');
+
+        $jumlahTransaksi = $pembelian->count();
+
+        $rataRata = $jumlahTransaksi > 0
+            ? $total / $jumlahTransaksi
+            : 0;
 
         return view(
             'laporan.pembelian',
             compact(
                 'pembelian',
-                'total'
+                'total',
+                'jumlahTransaksi',
+                'rataRata',
+                'tanggalAwal',
+                'tanggalAkhir'
             )
         );
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | PDF PENJUALAN
+    |--------------------------------------------------------------------------
+    */
+
     public function pdfPenjualan(Request $request)
     {
-        $query = Penjualan::query();
+        $tanggalAwal = $request->tanggal_awal
+            ?? now()->startOfMonth()->toDateString();
 
-        if ($request->tanggal_awal && $request->tanggal_akhir) {
+        $tanggalAkhir = $request->tanggal_akhir
+            ?? now()->endOfMonth()->toDateString();
 
-            $query->whereBetween(
+        $penjualan = Penjualan::whereBetween(
                 'tanggal_penjualan',
                 [
-                    $request->tanggal_awal,
-                    $request->tanggal_akhir
+                    $tanggalAwal,
+                    $tanggalAkhir
                 ]
-            );
-        }
-
-        $penjualan = $query->get();
+            )
+            ->latest('tanggal_penjualan')
+            ->get();
 
         $total = $penjualan->sum('total');
 
         $pdf = Pdf::loadView(
-            'laporan.pdf-penjualan',
+            'laporan.pdf.penjualan',
             compact(
                 'penjualan',
-                'total'
+                'total',
+                'tanggalAwal',
+                'tanggalAkhir'
             )
         );
 
-        return $pdf->download(
-            'laporan-penjualan.pdf'
+        return $pdf->stream(
+            'laporan-penjualan-' .
+            $tanggalAwal .
+            '-sd-' .
+            $tanggalAkhir .
+            '.pdf'
         );
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | PDF PEMBELIAN
+    |--------------------------------------------------------------------------
+    */
+
     public function pdfPembelian(Request $request)
     {
-        $query = Pembelian::with('supplier');
+        $tanggalAwal = $request->tanggal_awal
+            ?? now()->startOfMonth()->toDateString();
 
-        if ($request->tanggal_awal && $request->tanggal_akhir) {
+        $tanggalAkhir = $request->tanggal_akhir
+            ?? now()->endOfMonth()->toDateString();
 
-            $query->whereBetween(
+        $pembelian = Pembelian::with('supplier')
+            ->whereBetween(
                 'tanggal_pembelian',
                 [
-                    $request->tanggal_awal,
-                    $request->tanggal_akhir
+                    $tanggalAwal,
+                    $tanggalAkhir
                 ]
-            );
-        }
+            )
+            ->latest('tanggal_pembelian')
+            ->get();
 
-        $pembelian = $query->get();
-
-        $total = $pembelian->sum(
-            'total_netto'
-        );
+        $total = $pembelian->sum('total_netto');
 
         $pdf = Pdf::loadView(
-            'laporan.pdf-pembelian',
+            'laporan.pdf.pembelian',
             compact(
                 'pembelian',
-                'total'
+                'total',
+                'tanggalAwal',
+                'tanggalAkhir'
             )
         );
 
-        return $pdf->download(
-            'laporan-pembelian.pdf'
+        return $pdf->stream(
+            'laporan-pembelian-' .
+            $tanggalAwal .
+            '-sd-' .
+            $tanggalAkhir .
+            '.pdf'
         );
     }
 }

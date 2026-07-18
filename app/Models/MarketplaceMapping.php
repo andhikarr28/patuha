@@ -25,4 +25,6 @@ class MarketplaceMapping extends Model
             'varian_id'
         );
     }
+
+    
 }

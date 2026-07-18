@@ -11,6 +11,9 @@ use App\Http\Controllers\PenjualanController;
 use App\Http\Controllers\DetailPenjualanController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\MarketplaceController;
+use App\Http\Controllers\PerencanaanPembelianController;
+use App\Http\Controllers\PenerimaanPembelianController;
+
 
 
 use Illuminate\Support\Facades\Route;
@@ -77,6 +80,63 @@ Route::middleware(['auth'])->group(function () {
         '/shopee/callback',
         [MarketplaceController::class, 'callback']
     )->name('shopee.callback');
+
+    Route::prefix('perencanaan-pembelian')
+        ->name('perencanaan-pembelian.')
+        ->group(function () {
+
+            Route::get(
+                '/',
+                [PerencanaanPembelianController::class, 'index']
+            )->name('index');
+
+            Route::get(
+                '/create',
+                [PerencanaanPembelianController::class, 'create']
+            )->name('create');
+
+            Route::post(
+                '/',
+                [PerencanaanPembelianController::class, 'store']
+            )->name('store');
+
+            Route::get(
+                '/{perencanaanPembelian}',
+                [PerencanaanPembelianController::class, 'show']
+            )->name('show');
+
+            Route::patch(
+                '/{perencanaanPembelian}/cancel',
+                [PerencanaanPembelianController::class, 'cancel']
+            )->name('cancel');
+        });
+
+    Route::prefix('penerimaan-pembelian')
+        ->name('penerimaan-pembelian.')
+        ->group(function () {
+
+            Route::get(
+                '/',
+                [PenerimaanPembelianController::class, 'index']
+            )->name('index');
+
+            Route::get(
+                '/{perencanaanPembelian}/create',
+                [PenerimaanPembelianController::class, 'create']
+            )->name('create');
+
+            Route::post(
+                '/{perencanaanPembelian}',
+                [PenerimaanPembelianController::class, 'store']
+            )->name('store');
+
+            Route::get(
+                '/detail/{pembelian}',
+                [PenerimaanPembelianController::class, 'show']
+            )->name('show');
+
+        });
+
 
     Route::prefix('marketplace')->group(function () {
 

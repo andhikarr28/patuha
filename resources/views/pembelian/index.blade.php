@@ -2,24 +2,57 @@
 
 @section('content')
 
-    <div class="flex justify-between items-center mb-6">
+<div class="space-y-6">
 
-        <h1 class="text-3xl font-bold">
-            Data Pembelian
-        </h1>
+    {{-- HEADER --}}
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
-        <a href="{{ route('pembelian.create') }}"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl shadow">
+        <div>
 
-            + Tambah Pembelian
+            <h1 class="text-3xl font-bold text-slate-900">
+                Riwayat Pembelian
+            </h1>
 
-        </a>
+            <p class="text-slate-500 mt-1">
+                Daftar pembelian yang telah diproses melalui penerimaan barang.
+            </p>
+
+        </div>
+
+
+        <div class="flex gap-3">
+
+            <a href="{{ route('perencanaan-pembelian.create') }}"
+               class="inline-flex items-center gap-2
+                      border border-slate-300
+                      bg-white hover:bg-slate-50
+                      text-slate-700 font-semibold
+                      px-5 py-3 rounded-xl transition">
+
+                📋 Buat Perencanaan
+
+            </a>
+
+            <a href="{{ route('penerimaan-pembelian.index') }}"
+               class="inline-flex items-center gap-2
+                      bg-blue-600 hover:bg-blue-700
+                      text-white font-semibold
+                      px-5 py-3 rounded-xl transition">
+
+                📥 Penerimaan Barang
+
+            </a>
+
+        </div>
 
     </div>
 
+
+    {{-- SUCCESS --}}
     @if(session('success'))
 
-        <div class="bg-green-100 border border-green-300 text-green-700 p-4 rounded-xl mb-5">
+        <div class="bg-green-50 border border-green-200
+                    text-green-700 px-5 py-4 rounded-xl">
 
             {{ session('success') }}
 
@@ -27,116 +60,215 @@
 
     @endif
 
-    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
 
-        <table class="w-full">
+    {{-- TABLE --}}
+    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
 
-            <thead class="bg-slate-100 text-slate-700">
+        {{-- TABLE HEADER --}}
+        <div class="px-6 py-5 border-b border-slate-200
+                    flex items-center justify-between">
 
-                <tr>
+            <div>
 
-                    <th class="px-6 py-4 text-left">
-                        No Faktur
-                    </th>
+                <h2 class="text-lg font-bold text-slate-900">
+                    Transaksi Pembelian
+                </h2>
 
-                    <th class="px-6 py-4 text-left">
-                        Tanggal
-                    </th>
+                <p class="text-sm text-slate-500 mt-1">
+                    Riwayat barang yang telah diterima dari supplier.
+                </p>
 
-                    <th class="px-6 py-4 text-left">
-                        Supplier
-                    </th>
+            </div>
 
-                    <th class="px-6 py-4 text-right">
-                        Total Netto
-                    </th>
+            <span class="bg-slate-100 text-slate-600
+                         px-3 py-1.5 rounded-lg
+                         text-sm font-medium">
 
-                    <th class="px-6 py-4 text-center">
-                        Aksi
-                    </th>
+                {{ $pembelian->count() }} Transaksi
 
-                </tr>
+            </span>
 
-            </thead>
+        </div>
 
-            <tbody>
 
-                @forelse($pembelian as $item)
+        <div class="overflow-x-auto">
 
-                    <tr class="border-t hover:bg-slate-50 transition">
+            <table class="w-full">
 
-                        <td class="px-6 py-4 font-medium">
-                            {{ $item->no_faktur }}
-                        </td>
+                <thead class="bg-slate-50">
 
-                        <td class="px-6 py-4">
-                            {{ \Carbon\Carbon::parse($item->tanggal_pembelian)->format('d M Y') }}
-                        </td>
+                    <tr class="text-xs uppercase tracking-wide text-slate-500">
 
-                        <td class="px-6 py-4">
-                            {{ $item->supplier->nama_supplier }}
-                        </td>
+                        <th class="px-6 py-4 text-left">
+                            No. Faktur
+                        </th>
 
-                        <td class="px-6 py-4 text-right font-semibold">
-                            Rp {{ number_format($item->total_netto, 0, ',', '.') }}
-                        </td>
+                        <th class="px-6 py-4 text-left">
+                            Tanggal
+                        </th>
 
-                        <td class="px-6 py-4">
+                        <th class="px-6 py-4 text-left">
+                            Supplier
+                        </th>
 
-                            <div class="flex justify-center gap-2">
+                        <th class="px-6 py-4 text-right">
+                            Total Netto
+                        </th>
 
-                                <a href="{{ route('detail-pembelian.index', ['pembelian_id' => $item->id]) }}"
-                                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-
-                                    Detail
-
-                                </a>
-
-                                <a href="{{ route('pembelian.edit', $item) }}"
-                                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
-
-                                    Edit
-
-                                </a>
-
-                                <form action="{{ route('pembelian.destroy', $item) }}" method="POST">
-
-                                    @csrf
-                                    @method('DELETE')
-
-                                    <button onclick="return confirm('Yakin hapus pembelian ini?')"
-                                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
-
-                                        Hapus
-
-                                    </button>
-
-                                </form>
-
-                            </div>
-
-                        </td>
+                        <th class="px-6 py-4 text-right">
+                            Aksi
+                        </th>
 
                     </tr>
 
-                @empty
+                </thead>
 
-                    <tr>
 
-                        <td colspan="5" class="text-center py-10 text-slate-500">
+                <tbody class="divide-y divide-slate-100">
 
-                            Belum ada data pembelian
+                    @forelse($pembelian as $item)
 
-                        </td>
+                        <tr class="hover:bg-slate-50 transition">
 
-                    </tr>
+                            {{-- FAKTUR --}}
+                            <td class="px-6 py-5">
 
-                @endforelse
+                                <div class="font-semibold text-slate-900">
 
-            </tbody>
+                                    {{ $item->no_faktur }}
 
-        </table>
+                                </div>
+
+                                <div class="text-xs text-slate-400 mt-1">
+
+                                    ID #{{ $item->id }}
+
+                                </div>
+
+                            </td>
+
+
+                            {{-- TANGGAL --}}
+                            <td class="px-6 py-5 text-slate-600">
+
+                                {{ \Carbon\Carbon::parse(
+                                    $item->tanggal_pembelian
+                                )->format('d M Y') }}
+
+                            </td>
+
+
+                            {{-- SUPPLIER --}}
+                            <td class="px-6 py-5">
+
+                                <div class="flex items-center gap-3">
+
+                                    <div class="w-9 h-9 rounded-lg
+                                                bg-blue-50
+                                                flex items-center justify-center">
+
+                                        🚚
+
+                                    </div>
+
+                                    <span class="font-medium text-slate-800">
+
+                                        {{ $item->supplier->nama_supplier ?? '-' }}
+
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+
+                            {{-- TOTAL --}}
+                            <td class="px-6 py-5 text-right">
+
+                                <span class="font-bold text-slate-900">
+
+                                    Rp {{ number_format(
+                                        $item->total_netto,
+                                        0,
+                                        ',',
+                                        '.'
+                                    ) }}
+
+                                </span>
+
+                            </td>
+
+
+                            {{-- AKSI --}}
+                            <td class="px-6 py-5">
+
+                                <div class="flex justify-end">
+
+                                    <a href="{{ route(
+                                        'detail-pembelian.index',
+                                        ['pembelian_id' => $item->id]
+                                    ) }}"
+                                       class="inline-flex items-center gap-2
+                                              border border-slate-300
+                                              hover:border-blue-500
+                                              hover:text-blue-600
+                                              px-4 py-2 rounded-lg
+                                              text-sm font-medium transition">
+
+                                        👁 Detail
+
+                                    </a>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+
+                            <td colspan="5"
+                                class="px-6 py-16 text-center">
+
+                                <div class="text-4xl mb-3">
+                                    📦
+                                </div>
+
+                                <h3 class="font-semibold text-slate-800">
+                                    Belum Ada Riwayat Pembelian
+                                </h3>
+
+                                <p class="text-sm text-slate-500 mt-1">
+                                    Pembelian akan muncul setelah proses
+                                    penerimaan barang dilakukan.
+                                </p>
+
+                                <a href="{{ route('perencanaan-pembelian.create') }}"
+                                   class="inline-flex mt-5
+                                          bg-blue-600 hover:bg-blue-700
+                                          text-white px-5 py-2.5
+                                          rounded-xl font-semibold">
+
+                                    Buat Perencanaan
+
+                                </a>
+
+                            </td>
+
+                        </tr>
+
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
 
     </div>
+
+</div>
 
 @endsection

@@ -12,9 +12,11 @@ class Pembelian extends Model
     protected $table = 'pembelian';
 
     protected $fillable = [
+        'perencanaan_pembelian_id',
         'no_faktur',
         'tanggal_pembelian',
         'supplier_id',
+        'status',
         'total_brutto',
         'total_diskon',
         'total_netto',
@@ -23,11 +25,33 @@ class Pembelian extends Model
 
     public function supplier()
     {
-        return $this->belongsTo(Supplier::class);
+        return $this->belongsTo(
+            Supplier::class,
+            'supplier_id'
+        );
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(
+            User::class,
+            'user_id'
+        );
     }
 
     public function detailPembelian()
     {
-        return $this->hasMany(DetailPembelian::class);
+        return $this->hasMany(
+            DetailPembelian::class,
+            'pembelian_id'
+        );
+    }
+
+    public function perencanaan()
+    {
+        return $this->belongsTo(
+            PerencanaanPembelian::class,
+            'perencanaan_pembelian_id'
+        );
     }
 }

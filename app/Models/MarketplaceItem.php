@@ -14,4 +14,12 @@ class MarketplaceItem extends Model
         'berat',
         'kategori_id',
     ];
+
+    public function models()
+    {
+        return $this->hasMany(
+            MarketplaceItemModel::class,
+            'marketplace_item_id'
+        );
+    }
 }

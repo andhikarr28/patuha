@@ -20,11 +20,17 @@ class Barang extends Model
     ];
     public function kategori()
     {
-        return $this->belongsTo(Kategori::class, 'kategori_id');
+        return $this->belongsTo(
+            Kategori::class,
+            'kategori_id'
+        );
     }
 
-    public function varianBarang()
+    public function varians()
     {
-        return $this->hasMany(VarianBarang::class);
+        return $this->hasMany(
+            VarianBarang::class,
+            'barang_id'
+        );
     }
 }
