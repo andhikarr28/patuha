@@ -1,246 +1,73 @@
 @extends('layouts.app')
 
 @section('content')
-
-<div class="space-y-6">
+<div class="p-4 space-y-6">
 
     {{-- HEADER --}}
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-            <h1 class="text-3xl font-bold text-slate-900">
-                Penjualan
-            </h1>
-
-            <p class="text-slate-500 mt-1">
-                Kelola transaksi penjualan toko dan marketplace.
-            </p>
+            <h1 class="text-2xl font-bold">Penjualan</h1>
+            <p class="text-gray-500 text-sm">Kelola transaksi penjualan toko dan marketplace.</p>
         </div>
-
-        <a href="{{ route('penjualan.create') }}"
-           class="inline-flex items-center justify-center gap-2
-                  bg-blue-600 hover:bg-blue-700
-                  text-white font-semibold
-                  px-5 py-3 rounded-xl transition">
-
-            <span>＋</span>
-            Transaksi Baru
-
-        </a>
-
+        <a href="{{ route('penjualan.create') }}" class="bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold">+ Transaksi Baru</a>
     </div>
 
-
-    {{-- SUCCESS --}}
+    {{-- FLASH --}}
     @if(session('success'))
-
-        <div class="bg-green-50 border border-green-200
-                    text-green-700 px-5 py-4 rounded-xl">
-
-            {{ session('success') }}
-
-        </div>
-
+        <div class="border border-green-300 bg-green-50 text-green-700 rounded p-3 text-sm">{{ session('success') }}</div>
     @endif
 
-
-    {{-- TABLE CARD --}}
-    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-
-        {{-- CARD HEADER --}}
-        <div class="px-6 py-5 border-b border-slate-200
-                    flex items-center justify-between">
-
+    {{-- TABLE --}}
+    <div class="border rounded">
+        <div class="px-4 py-3 border-b flex items-center justify-between">
             <div>
-
-                <h2 class="text-lg font-bold text-slate-900">
-                    Riwayat Transaksi
-                </h2>
-
-                <p class="text-sm text-slate-500 mt-1">
-                    Daftar seluruh transaksi penjualan yang tercatat.
-                </p>
-
+                <h2 class="font-bold">Riwayat Transaksi</h2>
+                <p class="text-sm text-gray-500">Daftar seluruh transaksi penjualan yang tercatat.</p>
             </div>
-
-            <span class="bg-slate-100 text-slate-600
-                         px-3 py-1.5 rounded-lg text-sm font-medium">
-
-                {{ $penjualan->count() }} Transaksi
-
-            </span>
-
+            <span class="bg-gray-100 text-sm rounded px-3 py-1">{{ $penjualan->count() }} Transaksi</span>
         </div>
-
 
         <div class="overflow-x-auto">
-
-            <table class="w-full">
-
-                <thead class="bg-slate-50">
-
-                    <tr class="text-xs uppercase tracking-wide text-slate-500">
-
-                        <th class="px-6 py-4 text-left">
-                            No. Nota
-                        </th>
-
-                        <th class="px-6 py-4 text-left">
-                            Tanggal
-                        </th>
-
-                        <th class="px-6 py-4 text-left">
-                            Channel
-                        </th>
-
-                        <th class="px-6 py-4 text-right">
-                            Total
-                        </th>
-
-                        <th class="px-6 py-4 text-right">
-                            Aksi
-                        </th>
-
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500 border-b">
+                        <th class="px-4 py-2">No. Nota</th>
+                        <th class="px-4 py-2">Tanggal</th>
+                        <th class="px-4 py-2">Channel</th>
+                        <th class="px-4 py-2 text-right">Total</th>
+                        <th class="px-4 py-2 text-right">Aksi</th>
                     </tr>
-
                 </thead>
-
-                <tbody class="divide-y divide-slate-100">
-
+                <tbody>
                     @forelse($penjualan as $item)
-
-                        <tr class="hover:bg-slate-50 transition">
-
-                            {{-- NOTA --}}
-                            <td class="px-6 py-5">
-
-                                <div class="font-semibold text-slate-900">
-                                    {{ $item->no_nota }}
-                                </div>
-
-                                <div class="text-xs text-slate-400 mt-1">
-                                    ID #{{ $item->id }}
-                                </div>
-
+                        <tr class="border-b">
+                            <td class="px-4 py-3">
+                                <p class="font-semibold">{{ $item->no_nota }}</p>
+                                <p class="text-xs text-gray-400">ID #{{ $item->id }}</p>
                             </td>
-
-
-                            {{-- TANGGAL --}}
-                            <td class="px-6 py-5 text-slate-600">
-
-                                {{ \Carbon\Carbon::parse(
-                                    $item->tanggal_penjualan
-                                )->format('d M Y') }}
-
+                            <td class="px-4 py-3">{{ \Carbon\Carbon::parse($item->tanggal_penjualan)->format('d M Y') }}</td>
+                            <td class="px-4 py-3">
+                                {{ strtolower($item->channel) === 'shopee' ? '🛍️ Shopee' : '🏪 ' . ucfirst($item->channel) }}
                             </td>
-
-
-                            {{-- CHANNEL --}}
-                            <td class="px-6 py-5">
-
-                                @if(strtolower($item->channel) === 'shopee')
-
-                                    <span class="inline-flex items-center
-                                                 bg-orange-50 text-orange-700
-                                                 px-3 py-1 rounded-full
-                                                 text-sm font-medium">
-
-                                        🛍️ Shopee
-
-                                    </span>
-
-                                @else
-
-                                    <span class="inline-flex items-center
-                                                 bg-blue-50 text-blue-700
-                                                 px-3 py-1 rounded-full
-                                                 text-sm font-medium">
-
-                                        🏪 {{ ucfirst($item->channel) }}
-
-                                    </span>
-
-                                @endif
-
-                            </td>
-
-
-                            {{-- TOTAL --}}
-                            <td class="px-6 py-5 text-right">
-
-                                <span class="font-bold text-slate-900">
-
-                                    Rp {{ number_format(
-                                        $item->total,
-                                        0,
-                                        ',',
-                                        '.'
-                                    ) }}
-
-                                </span>
-
-                            </td>
-
-
-                            {{-- AKSI --}}
-                            <td class="px-6 py-5">
-
+                            <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3">
                                 <div class="flex justify-end">
-
-                                    <a href="{{ route(
-                                        'detail-penjualan.index',
-                                        ['penjualan_id' => $item->id]
-                                    ) }}"
-                                       class="inline-flex items-center gap-2
-                                              border border-slate-300
-                                              hover:border-blue-500
-                                              hover:text-blue-600
-                                              px-4 py-2 rounded-lg
-                                              text-sm font-medium transition">
-
-                                        👁 Detail
-
-                                    </a>
-
+                                    <a href="{{ route('detail-penjualan.index', ['penjualan_id' => $item->id]) }}" class="border rounded px-3 py-1 text-xs">👁 Detail</a>
                                 </div>
-
                             </td>
-
                         </tr>
-
                     @empty
-
                         <tr>
-
-                            <td colspan="5"
-                                class="px-6 py-16 text-center">
-
-                                <div class="text-4xl mb-3">
-                                    🧾
-                                </div>
-
-                                <h3 class="font-semibold text-slate-800">
-                                    Belum Ada Transaksi
-                                </h3>
-
-                                <p class="text-sm text-slate-500 mt-1">
-                                    Transaksi penjualan akan muncul di sini.
-                                </p>
-
+                            <td colspan="5" class="text-center py-10">
+                                <p class="font-semibold">Belum Ada Transaksi</p>
+                                <p class="text-sm text-gray-500 mt-1">Transaksi penjualan akan muncul di sini.</p>
                             </td>
-
                         </tr>
-
                     @endforelse
-
                 </tbody>
-
             </table>
-
         </div>
-
     </div>
 
 </div>
-
 @endsection

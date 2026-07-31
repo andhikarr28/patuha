@@ -16,7 +16,8 @@ class Barang extends Model
         'artikel',
         'kode_seri',
         'brand',
-        'spesifikasi'
+        'spesifikasi',
+        'foto'
     ];
     public function kategori()
     {

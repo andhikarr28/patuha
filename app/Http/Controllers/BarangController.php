@@ -8,12 +8,6 @@ use Illuminate\Http\Request;
 
 class BarangController extends Controller
 {
-    /**
-     * Menampilkan daftar master barang.
-     *
-     * Barang hanya tampil satu kali.
-     * Jumlah varian dan total stok dihitung dari tabel varian_barang.
-     */
     public function index(Request $request)
     {
         $query = Barang::with('kategori')
@@ -48,12 +42,6 @@ class BarangController extends Controller
                 );
             });
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Filter kategori
-        |--------------------------------------------------------------------------
-        */
         if ($request->filled('kategori_id')) {
 
             $query->where(
@@ -79,10 +67,6 @@ class BarangController extends Controller
         );
     }
 
-
-    /**
-     * Form tambah barang.
-     */
     public function create()
     {
         $kategori = Kategori::orderBy(
@@ -95,10 +79,6 @@ class BarangController extends Controller
         );
     }
 
-
-    /**
-     * Simpan barang.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -132,16 +112,6 @@ class BarangController extends Controller
 
         $barang = Barang::create($data);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Setelah barang dibuat
-        |--------------------------------------------------------------------------
-        |
-        | Arahkan ke detail barang.
-        | Dari sana user dapat menambahkan varian.
-        |
-        */
-
         return redirect()
             ->route(
                 'barang.show',
@@ -153,10 +123,6 @@ class BarangController extends Controller
             );
     }
 
-
-    /**
-     * Detail barang + seluruh variannya.
-     */
     public function show(Barang $barang)
     {
         $barang->load([
@@ -168,12 +134,6 @@ class BarangController extends Controller
                     ->orderBy('ukuran');
             }
         ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Statistik barang
-        |--------------------------------------------------------------------------
-        */
 
         $jumlahVarian =
             $barang->varians->count();
@@ -203,9 +163,6 @@ class BarangController extends Controller
     }
 
 
-    /**
-     * Form edit barang.
-     */
     public function edit(Barang $barang)
     {
         $kategori = Kategori::orderBy(
@@ -221,10 +178,6 @@ class BarangController extends Controller
         );
     }
 
-
-    /**
-     * Update barang.
-     */
     public function update(
         Request $request,
         Barang $barang
@@ -248,6 +201,7 @@ class BarangController extends Controller
             'brand',
             'spesifikasi',
         ]);
+        
 
         if ($request->hasFile('foto')) {
 
@@ -258,6 +212,7 @@ class BarangController extends Controller
                     'public'
                 );
         }
+
 
         $barang->update($data);
 
@@ -272,21 +227,8 @@ class BarangController extends Controller
             );
     }
 
-
-    /**
-     * Hapus barang.
-     */
     public function destroy(Barang $barang)
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Cegah hapus kalau masih memiliki varian
-        |--------------------------------------------------------------------------
-        |
-        | Ini lebih aman karena varian mungkin sudah digunakan
-        | pada transaksi penjualan/pembelian.
-        |
-        */
 
         if ($barang->varians()->exists()) {
 

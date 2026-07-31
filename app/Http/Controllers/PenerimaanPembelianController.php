@@ -10,13 +10,12 @@ use App\Models\VarianBarang;
 use App\Models\StokLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+
 
 class PenerimaanPembelianController extends Controller
 {
-    /**
-     * Menampilkan daftar perencanaan yang masih bisa diterima.
-     */
     public function index()
     {
         $perencanaan = PerencanaanPembelian::with([
@@ -42,17 +41,9 @@ class PenerimaanPembelianController extends Controller
             compact('perencanaan')
         );
     }
-    /**
-     * Menampilkan form penerimaan berdasarkan perencanaan.
-     */
     public function create(
         PerencanaanPembelian $perencanaanPembelian
     ) {
-        /*
-        |--------------------------------------------------------------------------
-        | Perencanaan yang tidak boleh diterima
-        |--------------------------------------------------------------------------
-        */
 
         if (
             in_array(
@@ -70,12 +61,6 @@ class PenerimaanPembelianController extends Controller
                     'Perencanaan ini sudah selesai atau dibatalkan.'
                 );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Ambil detail yang masih memiliki sisa
-        |--------------------------------------------------------------------------
-        */
 
         $perencanaanPembelian->load([
             'supplier',
@@ -114,28 +99,10 @@ class PenerimaanPembelianController extends Controller
         );
     }
 
-    /**
-     * Menyimpan penerimaan barang.
-     *
-     * Di sinilah:
-     *
-     * - Pembelian dibuat
-     * - Detail pembelian dibuat
-     * - Stok bertambah
-     * - Harga beli diperbarui
-     * - Stok log dibuat
-     * - Qty diterima diperbarui
-     * - Status perencanaan diperbarui
-     */
     public function store(
         Request $request,
         PerencanaanPembelian $perencanaanPembelian
     ) {
-        /*
-        |--------------------------------------------------------------------------
-        | Validasi Dasar
-        |--------------------------------------------------------------------------
-        */
 
         $request->validate([
             'no_faktur' => [
@@ -180,12 +147,6 @@ class PenerimaanPembelianController extends Controller
             ],
         ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Jangan menerima perencanaan selesai / batal
-        |--------------------------------------------------------------------------
-        */
-
         if (
             in_array(
                 $perencanaanPembelian->status,
@@ -201,18 +162,12 @@ class PenerimaanPembelianController extends Controller
             );
         }
 
+        // dikumpulin di luar closure supaya bisa diakses setelah transaksi commit
+        $varianBerubah = [];
+
         try {
 
-            DB::transaction(function () use ($request, $perencanaanPembelian) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | Lock Header Perencanaan
-                |--------------------------------------------------------------------------
-                |
-                | Mencegah dua request penerimaan berjalan bersamaan.
-                |
-                */
+            DB::transaction(function () use ($request, $perencanaanPembelian, &$varianBerubah) {
 
                 $perencanaan =
                     PerencanaanPembelian::where(
@@ -238,12 +193,6 @@ class PenerimaanPembelianController extends Controller
                     ]);
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Ambil hanya item dengan qty > 0
-                |--------------------------------------------------------------------------
-                */
-
                 $itemsDiterima = collect(
                     $request->items
                 )->filter(function ($item) {
@@ -261,12 +210,6 @@ class PenerimaanPembelianController extends Controller
                             'Masukkan minimal satu barang yang diterima.'
                     ]);
                 }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Buat Header Pembelian Aktual
-                |--------------------------------------------------------------------------
-                */
 
                 $pembelian = Pembelian::create([
 
@@ -301,19 +244,7 @@ class PenerimaanPembelianController extends Controller
                 $totalBrutto = 0;
                 $totalDiskon = 0;
 
-                /*
-                |--------------------------------------------------------------------------
-                | Proses Setiap Barang yang Diterima
-                |--------------------------------------------------------------------------
-                */
-
                 foreach ($itemsDiterima as $item) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Ambil detail + lock
-                    |--------------------------------------------------------------------------
-                    */
 
                     $detailRencana =
                         DetailPerencanaanPembelian::where(
@@ -338,22 +269,10 @@ class PenerimaanPembelianController extends Controller
                     $qtyMasuk =
                         (int) $item['qty_diterima'];
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Hitung Sisa
-                    |--------------------------------------------------------------------------
-                    */
-
                     $sisa =
                         $detailRencana->qty_rencana
                         -
                         $detailRencana->qty_diterima;
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Jangan menerima lebih dari sisa
-                    |--------------------------------------------------------------------------
-                    */
 
                     if ($qtyMasuk > $sisa) {
 
@@ -364,12 +283,6 @@ class PenerimaanPembelianController extends Controller
 
                         ]);
                     }
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Harga Aktual
-                    |--------------------------------------------------------------------------
-                    */
 
                     $hargaSatuan =
                         (float) (
@@ -387,15 +300,6 @@ class PenerimaanPembelianController extends Controller
                             0
                         );
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Brutto
-                    |--------------------------------------------------------------------------
-                    |
-                    | Subtotal disimpan SEBELUM diskon.
-                    |
-                    */
-
                     $subtotal =
                         $qtyMasuk
                         *
@@ -409,11 +313,6 @@ class PenerimaanPembelianController extends Controller
                         ]);
                     }
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Buat Detail Pembelian
-                    |--------------------------------------------------------------------------
-                    */
 
                     DetailPembelian::create([
 
@@ -436,12 +335,6 @@ class PenerimaanPembelianController extends Controller
                             $subtotal,
                     ]);
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Ambil Varian + Lock
-                    |--------------------------------------------------------------------------
-                    */
-
                     $varian =
                         VarianBarang::where(
                             'id',
@@ -458,12 +351,6 @@ class PenerimaanPembelianController extends Controller
                         +
                         $qtyMasuk;
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Tambah Stok
-                    |--------------------------------------------------------------------------
-                    */
-
                     $varian->update([
 
                         'stok' =>
@@ -473,12 +360,6 @@ class PenerimaanPembelianController extends Controller
                             $hargaSatuan,
 
                     ]);
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Catat Stok Log
-                    |--------------------------------------------------------------------------
-                    */
 
                     StokLog::create([
 
@@ -502,35 +383,21 @@ class PenerimaanPembelianController extends Controller
 
                     ]);
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Update Qty Diterima
-                    |--------------------------------------------------------------------------
-                    */
-
                     $detailRencana->increment(
                         'qty_diterima',
                         $qtyMasuk
                     );
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Hitung Total
-                    |--------------------------------------------------------------------------
-                    */
 
                     $totalBrutto +=
                         $subtotal;
 
                     $totalDiskon +=
                         $diskon;
-                }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Update Total Pembelian
-                |--------------------------------------------------------------------------
-                */
+                    // catat varian yang stoknya berubah, refresh biar stok-nya update
+                    $varian->refresh();
+                    $varianBerubah[$varian->id] = $varian;
+                }
 
                 $pembelian->update([
 
@@ -547,12 +414,6 @@ class PenerimaanPembelianController extends Controller
 
                 ]);
 
-                /*
-                |--------------------------------------------------------------------------
-                | Cek apakah semua barang sudah diterima
-                |--------------------------------------------------------------------------
-                */
-
                 $masihAdaSisa =
                     DetailPerencanaanPembelian::where(
                         'perencanaan_pembelian_id',
@@ -564,12 +425,6 @@ class PenerimaanPembelianController extends Controller
                             'qty_rencana'
                         )
                         ->exists();
-
-                /*
-                |--------------------------------------------------------------------------
-                | Update Status Perencanaan
-                |--------------------------------------------------------------------------
-                */
 
                 $perencanaan->update([
 
@@ -598,6 +453,24 @@ class PenerimaanPembelianController extends Controller
                 );
         }
 
+        // Sync ke Shopee dilakukan SETELAH transaksi lokal commit sukses,
+        // di luar DB::transaction supaya lock DB gak nyangkut nungguin request HTTP.
+        $marketplace = app(MarketplaceController::class);
+
+        foreach ($varianBerubah as $varian) {
+            try {
+                $marketplace->syncSingleStockToShopee($varian);
+            } catch (\Throwable $e) {
+                Log::error(
+                    'Realtime Sync Shopee Gagal (Penerimaan)',
+                    [
+                        'varian_id' => $varian->id,
+                        'message' => $e->getMessage()
+                    ]
+                );
+            }
+        }
+
         return redirect()
             ->route(
                 'perencanaan-pembelian.show',
@@ -611,12 +484,6 @@ class PenerimaanPembelianController extends Controller
 
     public function show(Pembelian $pembelian)
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Pastikan Ini Pembelian dari Proses Perencanaan
-        |--------------------------------------------------------------------------
-        */
-
         if (!$pembelian->perencanaan_pembelian_id) {
 
             return redirect()
@@ -626,12 +493,6 @@ class PenerimaanPembelianController extends Controller
                     'Data ini bukan transaksi penerimaan dari perencanaan pembelian.'
                 );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Load Semua Data yang Dibutuhkan
-        |--------------------------------------------------------------------------
-        */
 
         $pembelian->load([
             'supplier',

@@ -132,11 +132,9 @@ class DetailPembelianController extends Controller
             'diskon' => 'nullable|numeric',
         ]);
 
-        // simpan pembelian lama
         $pembelianLama =
             $detail_pembelian->pembelian_id;
 
-        // kembalikan stok lama
         $varianLama = VarianBarang::findOrFail(
             $detail_pembelian->varian_id
         );
@@ -168,12 +166,10 @@ class DetailPembelianController extends Controller
             $request->qty
         );
 
-        // update total pembelian lama
         $this->updateTotalPembelian(
             $pembelianLama
         );
 
-        // update total pembelian baru
         $this->updateTotalPembelian(
             $request->pembelian_id
         );

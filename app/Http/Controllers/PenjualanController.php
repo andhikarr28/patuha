@@ -6,6 +6,9 @@ use App\Models\Penjualan;
 use Illuminate\Http\Request;
 use App\Models\VarianBarang;
 use App\Models\DetailPenjualan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 
 class PenjualanController extends Controller
 {
@@ -40,63 +43,80 @@ class PenjualanController extends Controller
             'cart' => 'required|array|min:1',
         ]);
 
-        $penjualan = Penjualan::create([
-            'no_nota' => $request->no_nota,
-            'tanggal_penjualan' => $request->tanggal_penjualan,
-            'channel' => $request->channel,
-            'metode_pembayaran' => $request->metode_pembayaran,
-            'total' => 0,
-            'user_id' => auth()->id(),
-        ]);
+        DB::beginTransaction();
 
-        $grandTotal = 0;
+        $varianBerubah = [];
 
-        foreach ($request->cart as $item) {
-
-            $varian = VarianBarang::findOrFail(
-                $item['varian_id']
-            );
-
-            if ($varian->stok < $item['qty']) {
-
-                return back()->with(
-                    'error',
-                    'Stok ' .
-                    $varian->barang->nama_barang .
-                    ' tidak mencukupi'
-                );
-            }
-
-            $subtotal =
-                $varian->harga_jual *
-                $item['qty'];
-
-            DetailPenjualan::create([
-                'penjualan_id' => $penjualan->id,
-                'varian_id' => $varian->id,
-                'qty' => $item['qty'],
-                'harga' => $varian->harga_jual,
-                'subtotal' => $subtotal,
+        try {
+            $penjualan = Penjualan::create([
+                'no_nota' => $request->no_nota,
+                'tanggal_penjualan' => $request->tanggal_penjualan,
+                'channel' => $request->channel,
+                'metode_pembayaran' => $request->metode_pembayaran,
+                'total' => 0,
+                'user_id' => auth()->id(),
             ]);
 
-            $varian->decrement(
-                'stok',
-                $item['qty']
-            );
+            $grandTotal = 0;
 
-            $grandTotal += $subtotal;
+            foreach ($request->cart as $item) {
+
+                $varian = VarianBarang::findOrFail($item['varian_id']);
+
+                if ($varian->stok < $item['qty']) {
+                    DB::rollBack();
+
+                    return back()->with(
+                        'error',
+                        'Stok ' . $varian->barang->nama_barang . ' tidak mencukupi'
+                    );
+                }
+
+                $subtotal = $varian->harga_jual * $item['qty'];
+
+                DetailPenjualan::create([
+                    'penjualan_id' => $penjualan->id,
+                    'varian_id' => $varian->id,
+                    'qty' => $item['qty'],
+                    'harga' => $varian->harga_jual,
+                    'subtotal' => $subtotal,
+                ]);
+
+                $varian->decrement('stok', $item['qty']);
+                $varian->refresh();
+                $varianBerubah[$varian->id] = $varian;
+
+                $grandTotal += $subtotal;
+            }
+
+            $penjualan->update(['total' => $grandTotal]);
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
         }
 
-        $penjualan->update([
-            'total' => $grandTotal
-        ]);
+        // Sync ke Shopee dilakukan SETELAH commit sukses, di luar transaksi DB.
+        // Kalau ditaruh di dalam transaction, request HTTP ke Shopee bisa bikin
+        // koneksi/lock DB nyangkut lama, dan external call tetap gak bisa di-rollback.
+        $marketplace = app(MarketplaceController::class);
+
+        foreach ($varianBerubah as $varian) {
+            try {
+                $marketplace->syncSingleStockToShopee($varian);
+            } catch (\Throwable $e) {
+                Log::error('Realtime Sync Shopee Gagal', [
+                    'varian_id' => $varian->id,
+                    'message' => $e->getMessage()
+                ]);
+            }
+        }
 
         return redirect()
             ->route('penjualan.index')
-            ->with(
-                'success',
-                'Transaksi berhasil disimpan'
-            );
+            ->with('success', 'Transaksi berhasil disimpan');
     }
 
     public function show(Penjualan $penjualan)
@@ -149,5 +169,16 @@ class PenjualanController extends Controller
                 'success',
                 'Penjualan berhasil dihapus'
             );
+    }
+
+    public function struk($id)
+    {
+        $penjualan = Penjualan::with('user')->findOrFail($id);
+
+        $detail = DetailPenjualan::with('varian.barang')
+            ->where('penjualan_id', $penjualan->id)
+            ->get();
+
+        return view('penjualan.struk', compact('penjualan', 'detail'));
     }
 }

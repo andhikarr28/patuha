@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\DB;
 
 class PerencanaanPembelianController extends Controller
 {
-    /**
-     * Menampilkan daftar perencanaan pembelian.
-     */
     public function index()
     {
         $perencanaan = PerencanaanPembelian::with([
@@ -30,9 +27,6 @@ class PerencanaanPembelianController extends Controller
         );
     }
 
-    /**
-     * Menampilkan halaman membuat perencanaan pembelian.
-     */
     public function create()
     {
         $supplier = Supplier::orderBy('nama_supplier')
@@ -41,7 +35,14 @@ class PerencanaanPembelianController extends Controller
         $varian = VarianBarang::with([
             'barang.kategori'
         ])
-            ->orderBy('id')
+
+            ->orderByRaw(
+                'CASE
+                    WHEN stok <= stok_minimum THEN 0
+                    ELSE 1
+                END'
+            )
+            ->orderBy('stok', 'asc')
             ->get();
 
         return view(
@@ -53,13 +54,6 @@ class PerencanaanPembelianController extends Controller
         );
     }
 
-    /**
-     * Menyimpan perencanaan pembelian.
-     *
-     * CATATAN:
-     * Pada tahap ini stok TIDAK bertambah.
-     * Stok baru bertambah ketika barang benar-benar diterima.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -104,12 +98,6 @@ class PerencanaanPembelianController extends Controller
 
         DB::transaction(function () use ($request) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | Buat Header Perencanaan
-            |--------------------------------------------------------------------------
-            */
-
             $perencanaan = PerencanaanPembelian::create([
                 'no_perencanaan' =>
                     'PP-' . now()->format('YmdHis'),
@@ -129,12 +117,6 @@ class PerencanaanPembelianController extends Controller
                 'user_id' =>
                     auth()->id(),
             ]);
-
-            /*
-            |--------------------------------------------------------------------------
-            | Simpan Detail Perencanaan
-            |--------------------------------------------------------------------------
-            */
 
             foreach ($request->cart as $item) {
 
@@ -156,18 +138,6 @@ class PerencanaanPembelianController extends Controller
                 ]);
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | PENTING
-            |--------------------------------------------------------------------------
-            |
-            | Tidak ada:
-            |
-            | $varian->increment('stok', ...)
-            |
-            | karena ini baru PERENCANAAN.
-            |
-            */
         });
 
         return redirect()
@@ -178,9 +148,6 @@ class PerencanaanPembelianController extends Controller
             );
     }
 
-    /**
-     * Menampilkan detail satu perencanaan.
-     */
     public function show(
         PerencanaanPembelian $perencanaanPembelian
     ) {
@@ -198,18 +165,9 @@ class PerencanaanPembelianController extends Controller
         );
     }
 
-    /**
-     * Membatalkan perencanaan.
-     *
-     * Kita tidak langsung delete supaya histori tetap ada.
-     */
     public function cancel(
         PerencanaanPembelian $perencanaanPembelian
     ) {
-        /*
-        | Jangan izinkan pembatalan jika
-        | sudah ada barang yang diterima.
-        */
 
         $sudahDiterima =
             $perencanaanPembelian
@@ -239,5 +197,13 @@ class PerencanaanPembelianController extends Controller
                 'success',
                 'Perencanaan pembelian berhasil dibatalkan.'
             );
+    }
+
+    public function struk($id)
+    {
+        $perencanaan = PerencanaanPembelian::with('supplier', 'user', 'details.varian.barang')
+            ->findOrFail($id);
+
+        return view('perencanaan-pembelian.struk', compact('perencanaan'));
     }
 }

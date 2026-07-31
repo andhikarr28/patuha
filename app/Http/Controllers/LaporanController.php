@@ -9,11 +9,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaporanController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN PENJUALAN
-    |--------------------------------------------------------------------------
-    */
 
     public function penjualan(Request $request)
     {
@@ -62,12 +57,6 @@ class LaporanController extends Controller
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | LAPORAN PEMBELIAN
-    |--------------------------------------------------------------------------
-    */
-
     public function pembelian(Request $request)
     {
         $tanggalAwal = $request->tanggal_awal
@@ -110,12 +99,6 @@ class LaporanController extends Controller
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | PDF PENJUALAN
-    |--------------------------------------------------------------------------
-    */
-
     public function pdfPenjualan(Request $request)
     {
         $tanggalAwal = $request->tanggal_awal
@@ -137,7 +120,7 @@ class LaporanController extends Controller
         $total = $penjualan->sum('total');
 
         $pdf = Pdf::loadView(
-            'laporan.pdf.penjualan',
+            'laporan.pdf-penjualan',
             compact(
                 'penjualan',
                 'total',
@@ -155,12 +138,6 @@ class LaporanController extends Controller
         );
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | PDF PEMBELIAN
-    |--------------------------------------------------------------------------
-    */
 
     public function pdfPembelian(Request $request)
     {
@@ -184,7 +161,7 @@ class LaporanController extends Controller
         $total = $pembelian->sum('total_netto');
 
         $pdf = Pdf::loadView(
-            'laporan.pdf.pembelian',
+            'laporan.pdf-pembelian',
             compact(
                 'pembelian',
                 'total',

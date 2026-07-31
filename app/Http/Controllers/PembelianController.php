@@ -5,12 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Pembelian;
 use App\Models\Supplier;
+use App\Models\DetailPembelian;
 
 class PembelianController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         $pembelian = Pembelian::with('supplier')
@@ -36,9 +34,6 @@ class PembelianController extends Controller
         );
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -106,17 +101,11 @@ class PembelianController extends Controller
             );
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Pembelian $pembelian)
     {
         $supplier = Supplier::all();
@@ -127,9 +116,6 @@ class PembelianController extends Controller
         );
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Pembelian $pembelian)
     {
         $request->validate([
@@ -149,9 +135,6 @@ class PembelianController extends Controller
             ->with('success', 'Pembelian berhasil diupdate');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Pembelian $pembelian)
     {
         $pembelian->delete();
@@ -159,5 +142,16 @@ class PembelianController extends Controller
         return redirect()
             ->route('pembelian.index')
             ->with('success', 'Pembelian berhasil dihapus');
+    }
+
+    public function struk($id)
+    {
+        $pembelian = Pembelian::with('supplier', 'user')->findOrFail($id);
+
+        $detail = DetailPembelian::with('varian.barang')
+            ->where('pembelian_id', $pembelian->id)
+            ->get();
+
+        return view('pembelian.struk', compact('pembelian', 'detail'));
     }
 }

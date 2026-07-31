@@ -22,11 +22,6 @@ class DetailPerencanaanPembelian extends Model
         'estimasi_harga' => 'decimal:2',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Header Perencanaan
-    |--------------------------------------------------------------------------
-    */
     public function perencanaanPembelian()
     {
         return $this->belongsTo(
@@ -35,11 +30,6 @@ class DetailPerencanaanPembelian extends Model
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Varian Barang
-    |--------------------------------------------------------------------------
-    */
     public function varian()
     {
         return $this->belongsTo(
@@ -48,11 +38,6 @@ class DetailPerencanaanPembelian extends Model
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Sisa barang yang belum diterima
-    |--------------------------------------------------------------------------
-    */
     public function getSisaQtyAttribute()
     {
         return max(

@@ -197,12 +197,10 @@ class DetailPenjualanController extends Controller
             $request->qty
         );
 
-        // update total nota lama
         $this->updateTotal(
             $penjualanLama
         );
 
-        // update total nota baru
         $this->updateTotal(
             $request->penjualan_id
         );

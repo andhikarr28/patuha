@@ -14,24 +14,8 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        /*
-        |--------------------------------------------------------------------------
-        | PERIODE DASHBOARD
-        |--------------------------------------------------------------------------
-        |
-        | Dashboard transaksi menggunakan bulan dan tahun berjalan.
-        |
-        */
-
         $bulan = now()->month;
         $tahun = now()->year;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | MASTER DATA
-        |--------------------------------------------------------------------------
-        */
 
         $totalBarang = Barang::count();
 
@@ -40,13 +24,6 @@ class DashboardController extends Controller
         $totalSupplier = Supplier::count();
 
         $totalStok = VarianBarang::sum('stok');
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL PENJUALAN BULAN INI
-        |--------------------------------------------------------------------------
-        */
 
         $totalPenjualan = Penjualan::whereMonth(
                 'tanggal_penjualan',
@@ -59,18 +36,6 @@ class DashboardController extends Controller
             ->sum('total');
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL PEMBELIAN BULAN INI
-        |--------------------------------------------------------------------------
-        |
-        | Pembelian merupakan transaksi yang terbentuk dari proses
-        | penerimaan barang.
-        |
-        | Jadi perencanaan pembelian TIDAK dihitung sebagai pembelian.
-        |
-        */
-
         $totalPembelian = Pembelian::whereMonth(
                 'tanggal_pembelian',
                 $bulan
@@ -82,17 +47,6 @@ class DashboardController extends Controller
             ->sum('total_netto');
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | STOK MENIPIS
-        |--------------------------------------------------------------------------
-        |
-        | Varian dianggap menipis apabila:
-        |
-        | stok <= stok_minimum
-        |
-        */
-
         $stokMenipis = VarianBarang::with('barang')
             ->whereColumn(
                 'stok',
@@ -101,32 +55,6 @@ class DashboardController extends Controller
             )
             ->orderBy('stok')
             ->get();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | MENUNGGU PENERIMAAN
-        |--------------------------------------------------------------------------
-        |
-        | Jangan hanya melihat status.
-        |
-        | Sebuah perencanaan masih menunggu penerimaan apabila masih
-        | memiliki detail dengan:
-        |
-        | qty_diterima < qty_rencana
-        |
-        | Dengan cara ini:
-        |
-        | 10 direncanakan
-        |  0 diterima  -> masih menunggu
-        |
-        | 10 direncanakan
-        |  5 diterima  -> masih menunggu
-        |
-        | 10 direncanakan
-        | 10 diterima  -> selesai
-        |
-        */
 
         $menungguPenerimaan = PerencanaanPembelian::where(
                 'status',
@@ -146,22 +74,6 @@ class DashboardController extends Controller
                 }
             )
             ->count();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOP 5 BARANG TERLARIS BULAN INI
-        |--------------------------------------------------------------------------
-        |
-        | Menggabungkan:
-        |
-        | detail_penjualan
-        |      ↓
-        | varian_barang
-        |      ↓
-        | barang
-        |
-        */
 
         $barangTerlaris = DB::table('detail_penjualan')
 
@@ -219,21 +131,6 @@ class DashboardController extends Controller
 
             ->get();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | PENJUALAN PER CHANNEL BULAN INI
-        |--------------------------------------------------------------------------
-        |
-        | Contoh:
-        |
-        | offline
-        | shopee
-        | tokopedia
-        | tiktok
-        |
-        */
-
         $penjualanChannel = Penjualan::select(
                 'channel',
 
@@ -262,12 +159,6 @@ class DashboardController extends Controller
 
             ->get();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | KIRIM DATA KE DASHBOARD
-        |--------------------------------------------------------------------------
-        */
 
         return view(
             'dashboard.index',
