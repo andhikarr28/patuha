@@ -1,57 +1,23 @@
 <?php
 
-namespace App\Models;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-
-class Pembelian extends Model
+return new class extends Migration
 {
-    use HasFactory;
-
-    protected $table = 'pembelian';
-
-    protected $fillable = [
-        'perencanaan_pembelian_id',
-        'no_faktur',
-        'tanggal_pembelian',
-        'supplier_id',
-        'status',
-        'total_brutto',
-        'total_diskon',
-        'total_netto',
-        'user_id',
-    ];
-
-    public function supplier()
+    public function up(): void
     {
-        return $this->belongsTo(
-            Supplier::class,
-            'supplier_id'
-        );
+        Schema::table('laporans', function (Blueprint $table) {
+            $table->json('detail_transaksi_penjualan')->nullable()->after('barang_kurang_laku');
+            $table->json('detail_transaksi_pembelian')->nullable()->after('detail_transaksi_penjualan');
+        });
     }
 
-    public function user()
+    public function down(): void
     {
-        return $this->belongsTo(
-            User::class,
-            'user_id'
-        );
+        Schema::table('laporans', function (Blueprint $table) {
+            $table->dropColumn(['detail_transaksi_penjualan', 'detail_transaksi_pembelian']);
+        });
     }
-
-    public function detailPembelian()
-    {
-        return $this->hasMany(
-            DetailPembelian::class,
-            'pembelian_id'
-        );
-    }
-
-    public function perencanaan()
-    {
-        return $this->belongsTo(
-            PerencanaanPembelian::class,
-            'perencanaan_pembelian_id'
-        );
-    }
-}
+};
