@@ -32,7 +32,7 @@
         </h1>
 
         <p class="text-slate-500 mt-1">
-            Tambahkan kombinasi warna, ukuran, SKU, dan harga untuk produk.
+            Tambahkan kombinasi warna dan ukuran. SKU akan dibuat otomatis oleh sistem.
         </p>
 
     </div>
@@ -98,7 +98,13 @@
                         {{-- ID BARANG TETAP DIKIRIM --}}
                         <input type="hidden"
                                name="barang_id"
+                               id="barang_id"
                                value="{{ $selectedBarang->id }}">
+
+                        {{-- KODE BARANG UNTUK PREVIEW SKU DI JS --}}
+                        <input type="hidden"
+                               id="kode_barang_barang"
+                               value="{{ $selectedBarang->kode_barang ?? 'BRG' . $selectedBarang->id }}">
 
                         <div class="flex items-center gap-4
                                     bg-slate-50
@@ -134,7 +140,9 @@
                     @else
 
                         <select name="barang_id"
+                                id="barang_id"
                                 required
+                                onchange="updateKodeBarang(this)"
                                 class="w-full border border-slate-300
                                        rounded-xl px-4 py-3
                                        focus:outline-none
@@ -149,6 +157,7 @@
                             @foreach($barang as $item)
 
                                 <option value="{{ $item->id }}"
+                                    data-kode-barang="{{ $item->kode_barang ?? 'BRG' . $item->id }}"
                                     {{ old('barang_id') == $item->id ? 'selected' : '' }}>
 
                                     {{ $item->nama_barang }}
@@ -158,6 +167,8 @@
                             @endforeach
 
                         </select>
+
+                        <input type="hidden" id="kode_barang_barang" value="">
 
                     @endif
 
@@ -183,8 +194,11 @@
 
                         <input type="text"
                                name="warna"
+                               id="warna"
                                value="{{ old('warna') }}"
                                placeholder="Contoh: Hitam"
+                               required
+                               oninput="updateSkuPreview()"
                                class="w-full border border-slate-300
                                       rounded-xl px-4 py-3
                                       focus:outline-none
@@ -210,8 +224,11 @@
 
                         <input type="text"
                                name="ukuran"
+                               id="ukuran"
                                value="{{ old('ukuran') }}"
                                placeholder="Contoh: XL, 40, 50L"
+                               required
+                               oninput="updateSkuPreview()"
                                class="w-full border border-slate-300
                                       rounded-xl px-4 py-3
                                       focus:outline-none
@@ -231,25 +248,26 @@
                 </div>
 
 
-                {{-- SKU --}}
+                {{-- SKU (AUTO, READ ONLY) --}}
                 <div>
 
                     <label class="block text-sm font-semibold text-slate-700 mb-2">
-                        SKU
+                        SKU (otomatis)
                     </label>
 
                     <input type="text"
-                           name="sku"
-                           value="{{ old('sku') }}"
-                           placeholder="Contoh: KKA-BLU-S"
+                           id="sku_preview"
+                           readonly
+                           placeholder="Akan terisi otomatis setelah warna & ukuran diisi..."
                            class="w-full border border-slate-300
                                   rounded-xl px-4 py-3
-                                  focus:outline-none
-                                  focus:ring-2
-                                  focus:ring-blue-500">
+                                  bg-slate-100
+                                  text-slate-600
+                                  cursor-not-allowed
+                                  focus:outline-none">
 
                     <p class="text-xs text-slate-400 mt-2">
-                        Gunakan SKU unik untuk membedakan setiap varian produk.
+                        SKU dibuat otomatis dari kode barang + warna + ukuran. Kode final tetap divalidasi ulang oleh sistem saat disimpan.
                     </p>
 
                     @error('sku')
@@ -443,5 +461,56 @@
     </form>
 
 </div>
+
+
+<script>
+    function singkatWarna(warna) {
+        warna = warna.trim();
+        if (warna.length === 0) return '';
+
+        const kata = warna.split(/\s+/);
+
+        if (kata.length === 1) {
+            return warna.substring(0, 3).toUpperCase();
+        }
+
+        return (kata[0][0] + kata[1][0] + kata[1].slice(-1)).toUpperCase();
+    }
+
+    function updateSkuPreview() {
+        const kodeBarang = document.getElementById('kode_barang_barang').value;
+        const warna       = document.getElementById('warna').value;
+        const ukuran      = document.getElementById('ukuran').value.replace(/\s+/g, '');
+
+        const previewEl = document.getElementById('sku_preview');
+
+        if (!kodeBarang || !warna || !ukuran) {
+            previewEl.value = '';
+            return;
+        }
+
+        const sku = `${kodeBarang}-${singkatWarna(warna)}-${ukuran}`.toUpperCase();
+        previewEl.value = sku;
+    }
+
+    function updateKodeBarang(selectEl) {
+        const selectedOption = selectEl.options[selectEl.selectedIndex];
+        const kodeBarang = selectedOption.getAttribute('data-kode-barang') || '';
+
+        document.getElementById('kode_barang_barang').value = kodeBarang;
+        updateSkuPreview();
+    }
+
+    // Kalau ada old('barang_id') dari validasi gagal, isi ulang kode_barang-nya
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectEl = document.getElementById('barang_id');
+
+        if (selectEl && selectEl.tagName === 'SELECT' && selectEl.value) {
+            updateKodeBarang(selectEl);
+        }
+
+        updateSkuPreview();
+    });
+</script>
 
 @endsection

@@ -827,7 +827,7 @@ class MarketplaceController extends Controller
                             $varian->id,
 
                         'tipe_transaksi' =>
-                            'penjualan_shopee',
+                            'penjualan',
 
                         'qty' =>
                             $qty,
@@ -903,8 +903,9 @@ class MarketplaceController extends Controller
             }
         }
 
-        return response()->json(
-            $hasil
+        return back()->with(
+            'success',
+            'Sinkronisasi pesanan berhasil.'
         );
     }
 

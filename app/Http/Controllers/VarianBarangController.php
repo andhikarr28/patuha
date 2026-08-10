@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\VarianBarang;
 use App\Models\Barang;
+use App\Services\SkuGeneratorService;
 use Illuminate\Http\Request;
 
 class VarianBarangController extends Controller
@@ -48,33 +49,55 @@ class VarianBarangController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, SkuGeneratorService $skuGenerator)
     {
-        $request->validate([
-            'barang_id' => 'required',
-            'warna' => 'required',
-            'ukuran' => 'required',
-            'harga_beli' => 'required|numeric',
-            'harga_jual' => 'required|numeric',
-            'stok' => 'required|integer',
+        $validated = $request->validate([
+            'barang_id'    => 'required|exists:barang,id',
+            'warna'        => 'required|string|max:50',
+            'ukuran'       => 'required|string|max:20',
+            'harga_beli'   => 'nullable|numeric|min:0',
+            'harga_jual'   => 'required|numeric|min:0',
+            'stok_minimum' => 'nullable|integer|min:0',
         ]);
 
+        $barang = Barang::findOrFail($validated['barang_id']);
+
+        // Cegah kombinasi warna + ukuran yang sama untuk barang yang sama
+        $sudahAda = VarianBarang::where('barang_id', $barang->id)
+            ->where('warna', $validated['warna'])
+            ->where('ukuran', $validated['ukuran'])
+            ->exists();
+
+        if ($sudahAda) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'warna' => 'Varian dengan warna dan ukuran ini sudah ada untuk barang tersebut.',
+                ]);
+        }
+
+        $sku = $skuGenerator->generate(
+            $barang,
+            $validated['warna'],
+            $validated['ukuran']
+        );
+
         $varian = VarianBarang::create([
-            'barang_id' => $request->barang_id,
-            'warna' => $request->warna,
-            'ukuran' => $request->ukuran,
-            'sku' => $request->sku,
-            'harga_beli' => $request->harga_beli ?? 0,
-            'harga_jual' => $request->harga_jual,
-            'stok' => 0,
-            'stok_minimum' => $request->stok_minimum,
+            'barang_id'    => $barang->id,
+            'warna'        => $validated['warna'],
+            'ukuran'       => $validated['ukuran'],
+            'sku'          => $sku,
+            'harga_beli'   => $validated['harga_beli'] ?? 0,
+            'harga_jual'   => $validated['harga_jual'],
+            'stok'         => 0,
+            'stok_minimum' => $validated['stok_minimum'] ?? 5,
         ]);
 
         return redirect()
             ->route('barang.show', $varian->barang_id)
             ->with(
                 'success',
-                'Varian berhasil ditambahkan.'
+                "Varian berhasil ditambahkan dengan SKU {$varian->sku}."
             );
     }
 
@@ -102,35 +125,62 @@ class VarianBarangController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, VarianBarang $varian)
+    public function update(Request $request, VarianBarang $varian, SkuGeneratorService $skuGenerator)
     {
-        $request->validate([
-            'barang_id' => 'required',
-            'warna' => 'required',
-            'ukuran' => 'required',
-            'harga_beli' => 'required|numeric',
-            'harga_jual' => 'required|numeric',
-            'stok' => 'required|integer',
+        $validated = $request->validate([
+            'barang_id'    => 'required|exists:barang,id',
+            'warna'        => 'required|string|max:50',
+            'ukuran'       => 'required|string|max:20',
+            'harga_beli'   => 'nullable|numeric|min:0',
+            'harga_jual'   => 'required|numeric|min:0',
+            'stok'         => 'required|integer|min:0',
+            'stok_minimum' => 'nullable|integer|min:0',
         ]);
 
+        $barang = Barang::findOrFail($validated['barang_id']);
+
+        // Cegah kombinasi warna + ukuran yang sama untuk barang yang sama
+        // (kecuali itu memang varian yang sedang diedit ini sendiri)
+        $sudahAda = VarianBarang::where('barang_id', $barang->id)
+            ->where('warna', $validated['warna'])
+            ->where('ukuran', $validated['ukuran'])
+            ->where('id', '!=', $varian->id)
+            ->exists();
+
+        if ($sudahAda) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'warna' => 'Varian dengan warna dan ukuran ini sudah ada untuk barang tersebut.',
+                ]);
+        }
+
+        // SKU dihitung ulang kalau barang, warna, atau ukuran berubah
+        $sku = $skuGenerator->generate(
+            $barang,
+            $validated['warna'],
+            $validated['ukuran']
+        );
+
         $varian->update([
-            'barang_id' => $request->barang_id,
-            'warna' => $request->warna,
-            'ukuran' => $request->ukuran,
-            'sku' => $request->sku,
-            'harga_beli' => $request->harga_beli,
-            'harga_jual' => $request->harga_jual,
-            'stok' => $request->stok,
-            'stok_minimum' => $request->stok_minimum,
+            'barang_id'    => $barang->id,
+            'warna'        => $validated['warna'],
+            'ukuran'       => $validated['ukuran'],
+            'sku'          => $sku,
+            'harga_beli'   => $validated['harga_beli'] ?? 0,
+            'harga_jual'   => $validated['harga_jual'],
+            'stok'         => $validated['stok'],
+            'stok_minimum' => $validated['stok_minimum'] ?? 5,
         ]);
 
         return redirect()
             ->route('barang.show', $varian->barang_id)
             ->with(
                 'success',
-                'Varian berhasil diperbarui.'
+                "Varian berhasil diperbarui dengan SKU {$varian->sku}."
             );
     }
+
     /**
      * Remove the specified resource from storage.
      */

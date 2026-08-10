@@ -1,79 +1,131 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
-<meta charset="UTF-8">
-<title>Struk {{ $penjualan->no_nota }}</title>
-<style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    <meta charset="UTF-8">
+    <title>Struk {{ $penjualan->no_nota }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    body {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 12px;
-        color: #000;
-        background: #e5e7eb;
-        padding: 24px 0;
-    }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: #000;
+            background: #e5e7eb;
+            padding: 24px 0;
+        }
 
-    .struk {
-        width: 302px; /* ~80mm printer kasir */
-        margin: 0 auto;
-        background: #fff;
-        padding: 16px;
-    }
+        .struk {
+            width: 302px;
+            /* ~80mm printer kasir */
+            margin: 0 auto;
+            background: #fff;
+            padding: 16px;
+        }
 
-    .center { text-align: center; }
-    .right { text-align: right; }
-    .bold { font-weight: bold; }
+        .center {
+            text-align: center;
+        }
 
-    .line {
-        border-top: 1px dashed #000;
-        margin: 8px 0;
-    }
+        .right {
+            text-align: right;
+        }
 
-    .row {
-        display: flex;
-        justify-content: space-between;
-        gap: 8px;
-    }
+        .bold {
+            font-weight: bold;
+        }
 
-    .item { margin-bottom: 6px; }
-    .item-name { font-weight: bold; }
-    .item-sub { font-size: 11px; color: #333; }
+        .line {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+        }
 
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 2px 0; vertical-align: top; }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
 
-    .actions {
-        width: 302px;
-        margin: 16px auto 0;
-        text-align: center;
-    }
+        .item {
+            margin-bottom: 6px;
+        }
 
-    .actions button,
-    .actions a {
-        display: inline-block;
-        font-family: -apple-system, sans-serif;
-        font-size: 14px;
-        font-weight: bold;
-        padding: 10px 20px;
-        border-radius: 6px;
-        border: none;
-        margin: 4px;
-        cursor: pointer;
-        text-decoration: none;
-    }
+        .item-name {
+            font-weight: bold;
+        }
 
-    .btn-print { background: #2563eb; color: #fff; }
-    .btn-back { background: #e2e8f0; color: #334155; }
+        .item-sub {
+            font-size: 11px;
+            color: #333;
+        }
 
-    @media print {
-        body { background: #fff; padding: 0; }
-        .struk { width: 100%; padding: 0; }
-        .actions { display: none; }
-        @page { margin: 0; size: 80mm auto; }
-    }
-</style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 2px 0;
+            vertical-align: top;
+        }
+
+        .actions {
+            width: 302px;
+            margin: 16px auto 0;
+            text-align: center;
+        }
+
+        .actions button,
+        .actions a {
+            display: inline-block;
+            font-family: -apple-system, sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            margin: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn-print {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .btn-back {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .struk {
+                width: 100%;
+                padding: 0;
+            }
+
+            .actions {
+                display: none;
+            }
+
+            @page {
+                margin: 0;
+                size: 80mm auto;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
     <div class="struk">
@@ -87,10 +139,22 @@
         <div class="line"></div>
 
         <table>
-            <tr><td>No Nota</td><td class="right">{{ $penjualan->no_nota }}</td></tr>
-            <tr><td>Tanggal</td><td class="right">{{ \Carbon\Carbon::parse($penjualan->tanggal_penjualan)->format('d/m/Y H:i') }}</td></tr>
-            <tr><td>Kasir</td><td class="right">{{ $penjualan->user->name ?? '-' }}</td></tr>
-            <tr><td>Channel</td><td class="right">{{ ucfirst($penjualan->channel) }}</td></tr>
+            <tr>
+                <td>No Nota</td>
+                <td class="right">{{ $penjualan->no_nota }}</td>
+            </tr>
+            <tr>
+                <td>Tanggal</td>
+                <td class="right">{{ \Carbon\Carbon::parse($penjualan->tanggal_penjualan)->format('d/m/Y H:i') }}</td>
+            </tr>
+            <tr>
+                <td>Kasir</td>
+                <td class="right">{{ $penjualan->user->name ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td>Channel</td>
+                <td class="right">{{ ucfirst($penjualan->channel) }}</td>
+            </tr>
         </table>
 
         <div class="line"></div>
@@ -113,7 +177,8 @@
         <table>
             <tr>
                 <td class="bold" style="font-size: 14px;">TOTAL</td>
-                <td class="right bold" style="font-size: 14px;">Rp {{ number_format($penjualan->total, 0, ',', '.') }}</td>
+                <td class="right bold" style="font-size: 14px;">Rp {{ number_format($penjualan->total, 0, ',', '.') }}
+                </td>
             </tr>
             <tr>
                 <td>Metode Bayar</td>
@@ -142,4 +207,5 @@
     </script>
 
 </body>
+
 </html>

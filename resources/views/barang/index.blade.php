@@ -56,6 +56,7 @@
                         <tr class="text-left text-gray-500 border-b">
                             <th class="px-4 py-2">Barang</th>
                             <th class="px-4 py-2">Kategori</th>
+                            <th class="px-4 py-2">Supplier</th>
                             <th class="px-4 py-2">Brand</th>
                             <th class="px-4 py-2 text-center">Varian</th>
                             <th class="px-4 py-2 text-center">Total Stok</th>
@@ -90,6 +91,7 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">{{ $item->kategori?->nama_kategori ?? '-' }}</td>
+                                <td class="px-4 py-3">{{ $item->supplier?->nama_supplier ?? '-' }}</td>
                                 <td class="px-4 py-3">{{ $item->brand ?: '-' }}</td>
                                 <td class="px-4 py-3 text-center">{{ $jumlahVarian }}</td>
                                 <td class="px-4 py-3 text-center">
@@ -101,10 +103,18 @@
                                         <span class="text-green-700 font-semibold">{{ number_format($totalStok, 0, ',', '.') }} unit</span>
                                     @endif
                                 </td>
+                                
                                 <td class="px-4 py-3">
                                     <div class="flex justify-end gap-2">
                                         <a href="{{ route('barang.show', $item->id) }}" class="bg-blue-600 text-white rounded px-3 py-1 text-xs">Detail</a>
+                                        @if(auth()->user()->hasRole(['admin']))
                                         <a href="{{ route('barang.edit', $item->id) }}" class="border rounded px-3 py-1 text-xs">Edit</a>
+                                        <form action="{{ route('barang.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus barang ini?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="bg-red-600 text-white rounded px-3 py-1 text-xs">Hapus</button>
+                                        </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

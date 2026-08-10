@@ -4,13 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Barang;
 use App\Models\Kategori;
+use App\Models\Supplier;
+use App\Services\KodeBarangGeneratorService;
 use Illuminate\Http\Request;
 
 class BarangController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Barang::with('kategori')
+        $query = Barang::with('kategori', 'supplier')
             ->withCount('varians')
             ->withSum('varians', 'stok');
 
@@ -30,16 +32,21 @@ class BarangController extends Controller
                     'like',
                     '%' . $search . '%'
                 )
-                ->orWhere(
-                    'artikel',
-                    'like',
-                    '%' . $search . '%'
-                )
-                ->orWhere(
-                    'brand',
-                    'like',
-                    '%' . $search . '%'
-                );
+                    ->orWhere(
+                        'artikel',
+                        'like',
+                        '%' . $search . '%'
+                    )
+                    ->orWhere(
+                        'brand',
+                        'like',
+                        '%' . $search . '%'
+                    )
+                    ->orWhere(
+                        'kode_barang',
+                        'like',
+                        '%' . $search . '%'
+                    );
             });
         }
         if ($request->filled('kategori_id')) {
@@ -73,32 +80,58 @@ class BarangController extends Controller
             'nama_kategori'
         )->get();
 
+        $supplier = Supplier::orderBy(
+            'nama_supplier'
+        )->get();
+
         return view(
             'barang.create',
-            compact('kategori')
+            compact('kategori', 'supplier')
         );
     }
 
-    public function store(Request $request)
+    public function store(Request $request, KodeBarangGeneratorService $kodeGenerator)
     {
         $request->validate([
             'kategori_id' => 'required|exists:kategori,id',
+            'supplier_id' => 'required|exists:supplier,id',
             'nama_barang' => 'required|string|max:255',
-            'artikel' => 'nullable|string|max:255',
-            'kode_seri' => 'nullable|string|max:255',
-            'brand' => 'nullable|string|max:255',
+            'artikel' => 'required|string|max:255',
+            'kode_seri' => 'required|string|max:50',
+            'brand' => 'required|string|max:255',
             'spesifikasi' => 'nullable|string',
             'foto' => 'nullable|image|max:2048',
         ]);
 
         $data = $request->only([
             'kategori_id',
+            'supplier_id',
             'nama_barang',
             'artikel',
             'kode_seri',
             'brand',
             'spesifikasi',
         ]);
+
+        $kategori = Kategori::findOrFail($data['kategori_id']);
+
+        $kodeBarang = $kodeGenerator->generate(
+            $kategori->kode ?? '',
+            $data['brand'] ?? null,
+            $data['artikel'] ?? null,
+            $data['kode_seri']
+        );
+
+        if ($kodeGenerator->sudahDipakai($kodeBarang)) {
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'kode_seri' => "Kode Barang \"{$kodeBarang}\" sudah dipakai. Ganti Kode Seri-nya.",
+                ]);
+        }
+
+        $data['kode_barang'] = $kodeBarang;
 
         if ($request->hasFile('foto')) {
 
@@ -119,7 +152,7 @@ class BarangController extends Controller
             )
             ->with(
                 'success',
-                'Barang berhasil ditambahkan. Silakan tambahkan varian barang.'
+                "Barang berhasil ditambahkan dengan kode {$barang->kode_barang}. Silakan tambahkan varian barang."
             );
     }
 
@@ -169,39 +202,66 @@ class BarangController extends Controller
             'nama_kategori'
         )->get();
 
+        $supplier = Supplier::orderBy(
+            'nama_supplier'
+        )->get();
+
         return view(
             'barang.edit',
             compact(
                 'barang',
-                'kategori'
+                'kategori',
+                'supplier'
             )
         );
     }
 
     public function update(
         Request $request,
-        Barang $barang
+        Barang $barang,
+        KodeBarangGeneratorService $kodeGenerator
     ) {
 
         $request->validate([
             'kategori_id' => 'required|exists:kategori,id',
+            'supplier_id' => 'required|exists:supplier,id',
             'nama_barang' => 'required|string|max:255',
-            'artikel' => 'nullable|string|max:255',
-            'kode_seri' => 'nullable|string|max:255',
-            'brand' => 'nullable|string|max:255',
+            'artikel' => 'required|string|max:255',
+            'kode_seri' => 'required|string|max:50',
+            'brand' => 'required|string|max:255',
             'spesifikasi' => 'nullable|string',
             'foto' => 'nullable|image|max:2048',
         ]);
 
         $data = $request->only([
             'kategori_id',
+            'supplier_id',
             'nama_barang',
             'artikel',
             'kode_seri',
             'brand',
             'spesifikasi',
         ]);
-        
+
+        $kategori = Kategori::findOrFail($data['kategori_id']);
+
+        $kodeBarang = $kodeGenerator->generate(
+            $kategori->kode ?? '',
+            $data['brand'] ?? null,
+            $data['artikel'] ?? null,
+            $data['kode_seri']
+        );
+
+        if ($kodeGenerator->sudahDipakai($kodeBarang, $barang->id)) {
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'kode_seri' => "Kode Barang \"{$kodeBarang}\" sudah dipakai barang lain. Ganti Kode Seri-nya.",
+                ]);
+        }
+
+        $data['kode_barang'] = $kodeBarang;
 
         if ($request->hasFile('foto')) {
 
@@ -223,7 +283,7 @@ class BarangController extends Controller
             )
             ->with(
                 'success',
-                'Data barang berhasil diperbarui.'
+                "Data barang berhasil diperbarui dengan kode {$barang->kode_barang}."
             );
     }
 

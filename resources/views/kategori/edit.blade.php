@@ -20,6 +20,19 @@
                 @enderror
             </div>
 
+            <div class="mb-4">
+                <label class="block text-sm font-semibold mb-1">Kode Kategori</label>
+                <input type="text" name="kode" value="{{ old('kode', $kategori->kode) }}" maxlength="10"
+                    class="w-full border rounded px-3 py-2 text-sm uppercase" placeholder="Contoh: JH" required>
+                <p class="text-xs text-gray-400 mt-1">
+                    Mengubah kode ini tidak akan mengubah Kode Barang yang sudah dibuat sebelumnya — hanya berlaku untuk barang baru atau barang yang diedit ulang kategorinya.
+                </p>
+
+                @error('kode')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
             <div class="flex gap-2">
                 <button type="submit" class="bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold">Update</button>
                 <a href="{{ route('kategori.index') }}" class="border rounded px-4 py-2 text-sm font-semibold">Kembali</a>

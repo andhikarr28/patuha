@@ -115,7 +115,7 @@ class PenjualanController extends Controller
         }
 
         return redirect()
-            ->route('penjualan.index')
+            ->route('penjualan.struk', $penjualan->id)
             ->with('success', 'Transaksi berhasil disimpan');
     }
 

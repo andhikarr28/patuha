@@ -11,13 +11,15 @@ class Barang extends Model
     protected $table = 'barang';
 
     protected $fillable = [
+        'supplier_id',
         'kategori_id',
         'nama_barang',
         'artikel',
         'kode_seri',
         'brand',
         'spesifikasi',
-        'foto'
+        'foto',
+        'kode_barang',
     ];
     public function kategori()
     {
@@ -32,6 +34,13 @@ class Barang extends Model
         return $this->hasMany(
             VarianBarang::class,
             'barang_id'
+        );
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(
+            Supplier::class
         );
     }
 }

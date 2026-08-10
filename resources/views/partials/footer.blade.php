@@ -1,5 +1,3 @@
-<footer class="mt-10 text-center text-gray-500">
-
-    © {{ date('Y') }} Patuha Outdoor
-
+<footer class="mt-8 py-4 border-t text-center text-xs text-gray-400">
+    © {{ date('Y') }} Toko Patuha Outdoor &mdash; Sistem Manajemen Internal
 </footer>

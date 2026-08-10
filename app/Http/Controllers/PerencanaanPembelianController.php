@@ -27,30 +27,28 @@ class PerencanaanPembelianController extends Controller
         );
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $supplier = Supplier::orderBy('nama_supplier')
-            ->get();
+        $supplier = Supplier::orderBy('nama_supplier')->get();
 
-        $varian = VarianBarang::with([
-            'barang.kategori'
-        ])
+        $supplierId = $request->query('supplier_id');
 
-            ->orderByRaw(
-                'CASE
-                    WHEN stok <= stok_minimum THEN 0
-                    ELSE 1
-                END'
-            )
+        $query = VarianBarang::query();
+
+        if ($supplierId) {
+            $query->whereHas('barang', function ($q) use ($supplierId) {
+                $q->where('supplier_id', $supplierId);
+            });
+        }
+
+        $varian = $query
+            ->orderByRaw('CASE WHEN stok <= stok_minimum THEN 0 ELSE 1 END')
             ->orderBy('stok', 'asc')
             ->get();
 
         return view(
             'perencanaan-pembelian.create',
-            compact(
-                'supplier',
-                'varian'
-            )
+            compact('supplier', 'varian', 'supplierId')
         );
     }
 

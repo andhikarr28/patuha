@@ -61,6 +61,7 @@
         @else
             <p class="text-gray-400 text-sm">Belum ada data penjualan.</p>
         @endif
+        
     </div>
 
     {{-- TOP BARANG TERLARIS --}}

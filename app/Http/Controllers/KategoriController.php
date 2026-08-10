@@ -20,19 +20,21 @@ class KategoriController extends Controller
     }
 
     public function store(Request $request)
-{
-    $request->validate([
-        'nama_kategori' => 'required|max:100'
-    ]);
+    {
+        $request->validate([
+            'nama_kategori' => 'required|max:100',
+            'kode' => 'required|string|max:10|unique:kategori,kode',
+        ]);
 
-    Kategori::create([
-        'nama_kategori' => $request->nama_kategori
-    ]);
+        Kategori::create([
+            'nama_kategori' => $request->nama_kategori,
+            'kode' => strtoupper($request->kode),
+        ]);
 
-    return redirect()
-        ->route('kategori.index')
-        ->with('success', 'Kategori berhasil ditambahkan');
-}
+        return redirect()
+            ->route('kategori.index')
+            ->with('success', 'Kategori berhasil ditambahkan');
+    }
 
     public function edit(Kategori $kategori)
     {
@@ -40,19 +42,21 @@ class KategoriController extends Controller
     }
 
     public function update(Request $request, Kategori $kategori)
-{
-    $request->validate([
-        'nama_kategori' => 'required|max:100'
-    ]);
+    {
+        $request->validate([
+            'nama_kategori' => 'required|max:100',
+            'kode' => 'required|string|max:10|unique:kategori,kode,' . $kategori->id,
+        ]);
 
-    $kategori->update([
-        'nama_kategori' => $request->nama_kategori
-    ]);
+        $kategori->update([
+            'nama_kategori' => $request->nama_kategori,
+            'kode' => strtoupper($request->kode),
+        ]);
 
-    return redirect()
-        ->route('kategori.index')
-        ->with('success', 'Kategori berhasil diupdate');
-}
+        return redirect()
+            ->route('kategori.index')
+            ->with('success', 'Kategori berhasil diupdate');
+    }
 
     public function destroy(Kategori $kategori)
     {

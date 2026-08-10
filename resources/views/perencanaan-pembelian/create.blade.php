@@ -38,14 +38,18 @@
                     <div>
                         <label for="supplier_id" class="block text-sm font-bold text-slate-700 mb-1">Supplier <span
                                 class="text-red-500">*</span></label>
-                        <select id="supplier_id" name="supplier_id" x-model="supplierId" @change="updateSupplierName"
-                            required class="w-full border border-slate-300 rounded-lg px-3 py-3 text-base">
-                            <option value="">Pilih Supplier</option>
+                        <select id="supplier_id" name="supplier_id" x-model="supplierId" required
+                            class="w-full border border-slate-300 rounded-lg px-3 py-3 text-base">
+                            <option value="">Semua Barang (belum pilih supplier)</option>
                             @foreach($supplier as $item)
                                 <option value="{{ $item->id }}" @selected(old('supplier_id') == $item->id)>
-                                    {{ $item->nama_supplier }}</option>
+                                    {{ $item->nama_supplier }}
+                                </option>
                             @endforeach
                         </select>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Pilih ulang opsi "Semua Barang" kapan saja untuk melihat semua stok tanpa refresh halaman.
+                        </p>
                     </div>
 
                     <div>
@@ -95,19 +99,21 @@
                         @endforeach
                     </div>
 
+                    {{-- KETERANGAN MODE TAMPILAN --}}
+                    <div x-show="!supplierId"
+                        class="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                        Menampilkan semua barang. Pilih supplier untuk mulai menambahkan barang ke rencana pembelian.
+                    </div>
+
                     {{-- PRODUCT LIST --}}
                     <div class="border border-slate-200 rounded-lg bg-white overflow-hidden">
 
-                        <div
-                            class="px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
-                            {{ $varian->count() }} varian tersedia
-                        </div>
-
                         <div class="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
-                            @foreach($varian as $item)
+                            @forelse($varian as $item)
                                 @php
                                     $namaBarang = $item->barang?->nama_barang ?? 'Barang';
                                     $kategori = $item->barang?->kategori?->nama_kategori ?? '';
+                                    $supplierIdBarang = $item->barang?->supplier_id ?? '';
                                     $warna = $item->warna ?? '-';
                                     $ukuran = $item->ukuran ?? '-';
                                     $sku = $item->sku ?? '-';
@@ -115,7 +121,7 @@
                                     $stokMenipis = $item->stok <= $item->stok_minimum;
                                 @endphp
 
-                                <div x-show="productVisible(@js($namaBarang), @js($sku), @js($warna), @js($ukuran), @js($kategori))"
+                                <div x-show="productVisible(@js($namaBarang), @js($sku), @js($warna), @js($ukuran), @js($kategori), @js($supplierIdBarang))"
                                     x-transition class="flex items-center gap-3 px-4 py-3">
 
                                     <div
@@ -137,13 +143,24 @@
                                             Stok {{ $item->stok }}</p>
                                     </div>
 
-                                    <button type="button"
-                                        @click="addItem({{ $item->id }}, {{ Js::from($namaBarang) }}, {{ Js::from($warna) }}, {{ Js::from($ukuran) }}, {{ Js::from($sku) }}, {{ (int) $item->stok }})"
-                                        class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white text-xl font-bold">
-                                        +
-                                    </button>
+                                    {{-- supplier sudah dipilih dan cocok: bisa ditambah --}}
+                                    <template x-if="supplierId">
+                                        <button type="button"
+                                            @click="addItem({{ $item->id }}, {{ Js::from($namaBarang) }}, {{ Js::from($warna) }}, {{ Js::from($ukuran) }}, {{ Js::from($sku) }}, {{ (int) $item->stok }})"
+                                            class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white text-xl font-bold">
+                                            +
+                                        </button>
+                                    </template>
+
+                                    <template x-if="!supplierId">
+                                        <span class="shrink-0 text-xs text-slate-400 px-2">Hanya Lihat</span>
+                                    </template>
                                 </div>
-                            @endforeach
+                            @empty
+                                <div class="text-center py-14 text-slate-500">
+                                    Belum ada varian barang.
+                                </div>
+                            @endforelse
                         </div>
                     </div>
                 </div>
@@ -258,6 +275,17 @@
 
                 init() {
                     this.$nextTick(() => { this.updateSupplierName(); });
+
+                    this.$watch('supplierId', () => {
+                        this.updateSupplierName();
+
+                        if (this.cart.length > 0) {
+                            const konfirmasi = confirm('Mengganti supplier akan mengosongkan barang yang sudah dipilih. Lanjutkan?');
+                            if (!konfirmasi) return;
+                        }
+
+                        this.cart = [];
+                    });
                 },
 
                 updateSupplierName() {
@@ -266,12 +294,20 @@
                     this.supplierName = select.options[select.selectedIndex].text;
                 },
 
-                productVisible(nama, sku, warna, ukuran, kategori) {
+                // true jika supplier barang berbeda dari supplier yang sedang dipilih
+                itemMismatch(supplierBarang) {
+                    if (!this.supplierId) return false;
+                    return String(supplierBarang) !== String(this.supplierId);
+                },
+
+                productVisible(nama, sku, warna, ukuran, kategori, supplierBarang) {
                     const keyword = this.search.toLowerCase().trim();
                     const text = (nama + ' ' + sku + ' ' + warna + ' ' + ukuran).toLowerCase();
                     const matchSearch = keyword === '' || text.includes(keyword);
                     const matchCategory = this.selectedCategory === 'Semua' || kategori === this.selectedCategory;
-                    return matchSearch && matchCategory;
+                    const matchSupplier = this.itemMismatch(supplierBarang) === false;
+
+                    return matchSearch && matchCategory && matchSupplier;
                 },
 
                 addItem(id, nama, warna, ukuran, sku, stok) {

@@ -16,4 +16,11 @@ class Supplier extends Model
         'alamat',
         'no_hp',
     ];
+
+    public function barang()
+    {
+        return $this->hasMany(
+            Barang::class
+        );
+    }
 }
