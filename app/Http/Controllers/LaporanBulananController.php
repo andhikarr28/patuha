@@ -184,7 +184,7 @@ class LaporanBulananController extends Controller
                     'varian_barang.ukuran',
                     'varian_barang.sku',
                     'detail_pembelian.qty',
-                    'detail_pembelian.harga',
+                    'detail_pembelian.harga_satuan',
                     'detail_pembelian.subtotal'
                 )
                 ->get();
