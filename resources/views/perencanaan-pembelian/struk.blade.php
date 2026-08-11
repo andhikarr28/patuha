@@ -9,7 +9,7 @@
     body {
         font-family: Arial, Helvetica, sans-serif;
         font-size: 13px;
-        color: #111;
+        color: #1e293b;
         background: #e5e7eb;
         padding: 24px 0;
     }
@@ -25,19 +25,43 @@
     /* KOP SURAT */
     .kop {
         display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        border-bottom: 3px solid #111;
-        padding-bottom: 12px;
-        margin-bottom: 20px;
+        align-items: center;
+        border-bottom: 3px solid #0f172a;
+        padding-bottom: 14px;
+        margin-bottom: 22px;
     }
 
-    .kop h1 { font-size: 20px; letter-spacing: 1px; }
-    .kop p { font-size: 12px; color: #444; margin-top: 2px; }
+    .kop .logo-box {
+        width: 56px;
+        height: 56px;
+        flex-shrink: 0;
+        margin-right: 14px;
+    }
 
-    .kop .doc-title { text-align: right; }
-    .kop .doc-title h2 { font-size: 16px; text-transform: uppercase; }
-    .kop .doc-title p { font-size: 12px; color: #444; }
+    .kop .logo-box img {
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+    }
+
+    .kop .logo-fallback {
+        width: 56px;
+        height: 56px;
+        background: #0f172a;
+        color: #fff;
+        text-align: center;
+        line-height: 56px;
+        font-weight: bold;
+        font-size: 22px;
+        border-radius: 6px;
+    }
+
+    .kop .brand h1 { font-size: 19px; letter-spacing: 0.5px; color: #0f172a; }
+    .kop .brand p { font-size: 11.5px; color: #475569; margin-top: 2px; }
+
+    .kop .doc-title { text-align: right; margin-left: auto; }
+    .kop .doc-title h2 { font-size: 15px; text-transform: uppercase; color: #0f172a; }
+    .kop .doc-title p { font-size: 11.5px; color: #475569; margin-top: 2px; }
 
     /* TUJUAN + INFO */
     .top-grid {
@@ -47,12 +71,12 @@
         margin-bottom: 20px;
     }
 
-    .tujuan p.label { font-size: 11px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
-    .tujuan p.nama { font-weight: bold; font-size: 14px; }
-    .tujuan p { font-size: 12px; color: #333; }
+    .tujuan p.label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+    .tujuan p.nama { font-weight: bold; font-size: 14px; color: #0f172a; }
+    .tujuan p { font-size: 12px; color: #334155; }
 
     .info-list { font-size: 13px; }
-    .info-list .label { display: inline-block; width: 140px; color: #555; }
+    .info-list .label { display: inline-block; width: 140px; color: #64748b; }
 
     /* TABLE BARANG */
     table.barang {
@@ -63,7 +87,7 @@
 
     table.barang th,
     table.barang td {
-        border: 1px solid #999;
+        border: 1px solid #cbd5e1;
         padding: 6px 8px;
         font-size: 12px;
     }
@@ -73,6 +97,7 @@
         text-align: left;
         font-size: 11px;
         text-transform: uppercase;
+        color: #334155;
     }
 
     table.barang td.right, table.barang th.right { text-align: right; }
@@ -82,23 +107,23 @@
 
     .disclaimer {
         font-size: 11px;
-        color: #666;
+        color: #64748b;
         font-style: italic;
         margin-bottom: 16px;
     }
 
     /* CATATAN */
     .catatan-box {
-        border: 1px solid #ccc;
+        border: 1px solid #cbd5e1;
         border-radius: 4px;
         padding: 10px 12px;
         font-size: 12px;
-        color: #333;
+        color: #334155;
         margin-bottom: 30px;
         background: #fafafa;
     }
 
-    .catatan-box .label { font-size: 11px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+    .catatan-box .label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
 
     /* TANDA TANGAN */
     .ttd {
@@ -111,9 +136,15 @@
     }
 
     .ttd .kotak {
-        border-top: 1px solid #111;
+        border-top: 1px solid #0f172a;
         margin: 60px 20px 4px;
         padding-top: 6px;
+    }
+
+    .footer-doc {
+        margin-top: 24px;
+        font-size: 10px;
+        color: #94a3b8;
     }
 
     /* ACTIONS (tidak ikut cetak) */
@@ -150,14 +181,25 @@
 </head>
 <body>
 
+    @php
+        $logoPath = public_path('images/logo-patuha.png');
+        $logoBase64 = file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : null;
+    @endphp
+
     <div class="lembar">
 
         {{-- KOP SURAT --}}
         <div class="kop">
-            <div>
+            <div class="logo-box">
+                @if($logoBase64)
+                    <img src="data:image/png;base64,{{ $logoBase64 }}" alt="Logo Patuha">
+                @else
+                    <div class="logo-fallback">P</div>
+                @endif
+            </div>
+            <div class="brand">
                 <h1>TOKO PATUHA OUTDOOR</h1>
-                <p>Jl. Terusan Kopo No.13</p>
-                <p>0811-2278-811</p>
+                <p>Jl. Terusan Kopo No.13 &middot; 0811-2278-811</p>
             </div>
             <div class="doc-title">
                 <h2>Surat Pesanan Pembelian</h2>
@@ -246,16 +288,18 @@
                 <div class="kotak">
                     ( {{ $perencanaan->user->name ?? '.....................' }} )
                 </div>
-                <p style="font-size: 11px; color: #666;">Toko Patuha Outdoor</p>
+                <p style="font-size: 11px; color: #64748b;">Toko Patuha Outdoor</p>
             </div>
             <div>
                 <p>Disetujui oleh Supplier,</p>
                 <div class="kotak">
                     ( {{ $perencanaan->supplier->nama_supplier ?? '.....................' }} )
                 </div>
-                <p style="font-size: 11px; color: #666;">Tanda tangan &amp; stempel</p>
+                <p style="font-size: 11px; color: #64748b;">Tanda tangan &amp; stempel</p>
             </div>
         </div>
+
+        <p class="footer-doc">Dicetak pada {{ now()->format('d F Y H:i') }} WIB &middot; Sistem Toko Patuha Outdoor</p>
 
     </div>
 
