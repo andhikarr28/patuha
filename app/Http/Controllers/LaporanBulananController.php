@@ -204,7 +204,7 @@ class LaporanBulananController extends Controller
                     'ukuran'      => $i->ukuran,
                     'sku'         => $i->sku,
                     'qty'         => (int) $i->qty,
-                    'harga'       => (float) $i->harga,
+                    'harga_satuan'       => (float) $i->harga_satuan,
                     'subtotal'    => (float) $i->subtotal,
                 ])->toArray(),
             ];
