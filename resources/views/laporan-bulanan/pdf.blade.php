@@ -145,7 +145,7 @@
                                     <td>{{ $item['warna'] }} / {{ $item['ukuran'] }}</td>
                                     <td>{{ $item['sku'] }}</td>
                                     <td class="right">{{ $item['qty'] }}</td>
-                                    <td class="right">Rp {{ number_format($item['harga'], 0, ',', '.') }}</td>
+                                    <td class="right">Rp {{ number_format($item['harga_satuan'], 0, ',', '.') }}</td>
                                     <td class="right">Rp {{ number_format($item['subtotal'], 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach
