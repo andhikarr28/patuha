@@ -52,12 +52,12 @@ class VarianBarangController extends Controller
     public function store(Request $request, SkuGeneratorService $skuGenerator)
     {
         $validated = $request->validate([
-            'barang_id'    => 'required|exists:barang,id',
-            'warna'        => 'required|string|max:50',
-            'ukuran'       => 'required|string|max:20',
-            'harga_beli'   => 'nullable|numeric|min:0',
-            'harga_jual'   => 'required|numeric|min:0',
-            'stok_minimum' => 'nullable|integer|min:0',
+            'barang_id'     => 'required|exists:barang,id',
+            'warna'         => 'required|string|max:50',
+            'ukuran'        => 'required|string|max:20',
+            'harga_beli'    => 'required|numeric|min:0',
+            'margin_persen' => 'required|numeric|min:0',
+            'stok_minimum'  => 'nullable|integer|min:0',
         ]);
 
         $barang = Barang::findOrFail($validated['barang_id']);
@@ -82,15 +82,21 @@ class VarianBarangController extends Controller
             $validated['ukuran']
         );
 
+        // Harga jual dihitung otomatis dari harga beli + margin persen
+        $hargaJual = round(
+            $validated['harga_beli'] + ($validated['harga_beli'] * $validated['margin_persen'] / 100)
+        );
+
         $varian = VarianBarang::create([
-            'barang_id'    => $barang->id,
-            'warna'        => $validated['warna'],
-            'ukuran'       => $validated['ukuran'],
-            'sku'          => $sku,
-            'harga_beli'   => $validated['harga_beli'] ?? 0,
-            'harga_jual'   => $validated['harga_jual'],
-            'stok'         => 0,
-            'stok_minimum' => $validated['stok_minimum'] ?? 5,
+            'barang_id'     => $barang->id,
+            'warna'         => $validated['warna'],
+            'ukuran'        => $validated['ukuran'],
+            'sku'           => $sku,
+            'harga_beli'    => $validated['harga_beli'],
+            'margin_persen' => $validated['margin_persen'],
+            'harga_jual'    => $hargaJual,
+            'stok'          => 0,
+            'stok_minimum'  => $validated['stok_minimum'] ?? 5,
         ]);
 
         return redirect()
@@ -128,13 +134,13 @@ class VarianBarangController extends Controller
     public function update(Request $request, VarianBarang $varian, SkuGeneratorService $skuGenerator)
     {
         $validated = $request->validate([
-            'barang_id'    => 'required|exists:barang,id',
-            'warna'        => 'required|string|max:50',
-            'ukuran'       => 'required|string|max:20',
-            'harga_beli'   => 'nullable|numeric|min:0',
-            'harga_jual'   => 'required|numeric|min:0',
-            'stok'         => 'required|integer|min:0',
-            'stok_minimum' => 'nullable|integer|min:0',
+            'barang_id'     => 'required|exists:barang,id',
+            'warna'         => 'required|string|max:50',
+            'ukuran'        => 'required|string|max:20',
+            'harga_beli'    => 'required|numeric|min:0',
+            'margin_persen' => 'required|numeric|min:0',
+            'stok'          => 'required|integer|min:0',
+            'stok_minimum'  => 'nullable|integer|min:0',
         ]);
 
         $barang = Barang::findOrFail($validated['barang_id']);
@@ -162,15 +168,21 @@ class VarianBarangController extends Controller
             $validated['ukuran']
         );
 
+        // Harga jual dihitung otomatis dari harga beli + margin persen
+        $hargaJual = round(
+            $validated['harga_beli'] + ($validated['harga_beli'] * $validated['margin_persen'] / 100)
+        );
+
         $varian->update([
-            'barang_id'    => $barang->id,
-            'warna'        => $validated['warna'],
-            'ukuran'       => $validated['ukuran'],
-            'sku'          => $sku,
-            'harga_beli'   => $validated['harga_beli'] ?? 0,
-            'harga_jual'   => $validated['harga_jual'],
-            'stok'         => $validated['stok'],
-            'stok_minimum' => $validated['stok_minimum'] ?? 5,
+            'barang_id'     => $barang->id,
+            'warna'         => $validated['warna'],
+            'ukuran'        => $validated['ukuran'],
+            'sku'           => $sku,
+            'harga_beli'    => $validated['harga_beli'],
+            'margin_persen' => $validated['margin_persen'],
+            'harga_jual'    => $hargaJual,
+            'stok'          => $validated['stok'],
+            'stok_minimum'  => $validated['stok_minimum'] ?? 5,
         ]);
 
         return redirect()

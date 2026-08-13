@@ -17,6 +17,7 @@ class VarianBarang extends Model
         'ukuran',
         'sku',
         'harga_jual',
+        'margin_persen',
         'stok',
         'stok_minimum',
         'harga_beli',
@@ -36,10 +37,10 @@ class VarianBarang extends Model
     }
 
     public function detailPenjualan()
-{
-    return $this->hasMany(
-        DetailPenjualan::class,
-        'varian_id'
-    );
-}
+    {
+        return $this->hasMany(
+            DetailPenjualan::class,
+            'varian_id'
+        );
+    }
 }
