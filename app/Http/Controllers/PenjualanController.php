@@ -41,6 +41,8 @@ class PenjualanController extends Controller
             'channel' => 'required',
             'metode_pembayaran' => 'required',
             'cart' => 'required|array|min:1',
+            'cart.*.varian_id' => 'required|integer|exists:varian_barang,id',
+            'cart.*.qty' => 'required|integer|min:1',
         ]);
 
         DB::beginTransaction();

@@ -40,7 +40,11 @@ class PembelianController extends Controller
             'no_faktur' => 'required',
             'tanggal_pembelian' => 'required',
             'supplier_id' => 'required',
-            'cart' => 'required|array|min:1'
+            'cart' => 'required|array|min:1',
+            'cart.*.varian_id' => 'required|integer|exists:varian_barang,id',
+            'cart.*.qty' => 'required|integer|min:1',
+            'cart.*.harga_beli' => 'required|numeric|min:0',
+            'cart.*.diskon' => 'nullable|numeric|min:0',
         ]);
 
         $pembelian = Pembelian::create([
