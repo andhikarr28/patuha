@@ -101,10 +101,21 @@
         });
 
         // Mobile sidebar toggle
+        // Mobile sidebar toggle (off-canvas, bukan collapse desktop)
         const mobileBtn = document.getElementById('mobile-sidebar-toggle');
+        const backdrop = document.getElementById('sidebar-backdrop');
+
         if (mobileBtn) {
             mobileBtn.addEventListener('click', function () {
-                document.getElementById('sidebar')?.classList.toggle('collapsed');
+                document.getElementById('sidebar')?.classList.toggle('mobile-open');
+                backdrop?.classList.toggle('hidden');
+            });
+        }
+
+        if (backdrop) {
+            backdrop.addEventListener('click', function () {
+                document.getElementById('sidebar')?.classList.remove('mobile-open');
+                backdrop.classList.add('hidden');
             });
         }
     })();

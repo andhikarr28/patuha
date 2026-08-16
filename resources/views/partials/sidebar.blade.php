@@ -139,12 +139,12 @@
         @if(auth()->user()->hasRole(['admin']))
             <div>
                 <p class="nav-group-label">Laporan</p>
-                    <a href="{{ route('laporan-bulanan.index') }}"
-                        class="nav-link {{ request()->routeIs('laporan-bulanan.*') ? 'nav-active' : '' }}">
-                        {!! $navIcon('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>') !!}
-                        <span class="nav-label">Laporan Bulanan</span>
-                    </a>
-                </div>
+                <a href="{{ route('laporan-bulanan.index') }}"
+                    class="nav-link {{ request()->routeIs('laporan-bulanan.*') ? 'nav-active' : '' }}">
+                    {!! $navIcon('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>') !!}
+                    <span class="nav-label">Laporan Bulanan</span>
+                </a>
+            </div>
         @endif
 
         @if(auth()->user()->hasRole(['owner']))
@@ -160,12 +160,12 @@
                     {!! $navIcon('<path d="M4 5v14m6-10v10m6-6v6"/>') !!}
                     <span class="nav-label">Rekap Pembelian</span>
                 </a>
-                    <a href="{{ route('laporan-bulanan.index') }}"
-                        class="nav-link {{ request()->routeIs('laporan-bulanan.*') ? 'nav-active' : '' }}">
-                        {!! $navIcon('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>') !!}
-                        <span class="nav-label">Laporan Bulanan</span>
-                    </a>
-                </div>
+                <a href="{{ route('laporan-bulanan.index') }}"
+                    class="nav-link {{ request()->routeIs('laporan-bulanan.*') ? 'nav-active' : '' }}">
+                    {!! $navIcon('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>') !!}
+                    <span class="nav-label">Laporan Bulanan</span>
+                </a>
+            </div>
         @endif
 
     </nav>
@@ -237,6 +237,47 @@
     #sidebar.collapsed .p-4.border-b {
         justify-content: center;
     }
+
+    /* --- MOBILE: sidebar jadi off-canvas, hilang dari layar sampai dibuka --- */
+    @media (max-width: 767px) {
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 50;
+            width: 256px !important;
+            transform: translateX(-100%);
+        }
+
+        #sidebar.mobile-open {
+            transform: translateX(0);
+        }
+
+        /* Di mobile, abaikan state "collapsed" desktop - selalu tampil penuh saat dibuka */
+        #sidebar.collapsed .nav-label,
+        #sidebar.collapsed .nav-group-label,
+        #sidebar.collapsed #sidebar-brand,
+        #sidebar.collapsed #sidebar-user>div:last-child {
+            display: block;
+        }
+
+        #sidebar.collapsed .nav-link {
+            justify-content: flex-start;
+            padding: 8px 10px;
+        }
+
+        #sidebar-toggle {
+            display: none;
+        }
+    }
+
+    @media (min-width: 768px) {
+        #sidebar {
+            position: relative;
+            transform: none !important;
+        }
+    }
 </style>
 
 <script>
@@ -260,6 +301,14 @@
             const collapsed = !sidebar.classList.contains('collapsed');
             applyState(collapsed);
             localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+        });
+
+        // Tutup sidebar mobile kalau klik salah satu menu (biar tidak nyangkut kebuka)
+        document.querySelectorAll('#sidebar .nav-link').forEach(function (link) {
+            link.addEventListener('click', function () {
+                sidebar.classList.remove('mobile-open');
+                document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+            });
         });
     })();
 </script>

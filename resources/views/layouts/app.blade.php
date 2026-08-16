@@ -18,6 +18,9 @@
 
         @include('partials.sidebar')
 
+        {{-- BACKDROP: cuma muncul di mobile saat sidebar dibuka --}}
+        <div id="sidebar-backdrop" class="hidden fixed inset-0 bg-black/50 z-40 md:hidden"></div>
+
         <div class="flex-1 flex flex-col min-w-0">
 
             @include('partials.navbar')
