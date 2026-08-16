@@ -14,18 +14,18 @@
 
 <body class="bg-slate-100 overflow-x-hidden">
 
-    <div class="flex min-h-screen">
+    <div class="flex min-h-screen w-full overflow-x-hidden">
 
         @include('partials.sidebar')
 
         {{-- BACKDROP: cuma muncul di mobile saat sidebar dibuka --}}
-        <div id="sidebar-backdrop" class="hidden fixed inset-0 bg-black/50 z-40 md:hidden"></div>
+        <div id="sidebar-backdrop" class="hidden fixed inset-0 bg-black/50 z-40 md:hidden" aria-hidden="true"></div>
 
-        <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col min-w-0 w-full">
 
             @include('partials.navbar')
 
-            <main class="flex-1 p-4 md:p-8 overflow-x-hidden">
+            <main class="flex-1 min-w-0 w-full p-4 md:p-8 overflow-x-hidden">
                 @if(session('success'))
                     <div class="mb-4 rounded bg-green-100 border border-green-400 text-green-700 px-4 py-3">
                         {{ session('success') }}

@@ -7,6 +7,15 @@
             <p class="text-slate-500 text-xs">Outdoor Store</p>
         </div>
 
+        <button id="mobile-sidebar-close" type="button"
+            class="md:hidden text-slate-400 hover:text-white p-1.5 rounded hover:bg-slate-800 shrink-0"
+            aria-label="Tutup menu navigasi">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+        </button>
+
         <button id="sidebar-toggle" type="button"
             class="text-slate-400 hover:text-white p-1.5 rounded hover:bg-slate-800 shrink-0"
             title="Sembunyikan sidebar">
@@ -36,7 +45,7 @@
     </div>
 
     {{-- NAVIGATION --}}
-    <nav class="flex-1 px-3 pt-5 pb-4 space-y-6 overflow-y-auto overflow-x-hidden text-sm">
+    <nav class="flex-1 min-h-0 px-3 pt-5 pb-4 space-y-6 overflow-y-auto overflow-x-hidden text-sm">
 
         @php
             $navIcon = function ($path) {
@@ -286,6 +295,8 @@
         const toggleBtn = document.getElementById('sidebar-toggle');
         const iconCollapse = document.getElementById('icon-collapse');
         const iconExpand = document.getElementById('icon-expand');
+        const mobileCloseBtn = document.getElementById('mobile-sidebar-close');
+        const mobileMediaQuery = window.matchMedia('(max-width: 767px)');
 
         function applyState(collapsed) {
             sidebar.classList.toggle('collapsed', collapsed);
@@ -303,11 +314,62 @@
             localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
         });
 
+        function setMobileSidebarOpen(isOpen) {
+            if (!mobileMediaQuery.matches) {
+                return;
+            }
+
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const mobileToggleBtn = document.getElementById('mobile-sidebar-toggle');
+
+            sidebar.classList.toggle('mobile-open', isOpen);
+            backdrop?.classList.toggle('hidden', !isOpen);
+            backdrop?.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+            mobileToggleBtn?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            document.body.classList.toggle('overflow-hidden', isOpen);
+
+            if (isOpen) {
+                mobileCloseBtn?.focus();
+            } else {
+                mobileToggleBtn?.focus();
+            }
+        }
+
+        window.setMobileSidebarOpen = setMobileSidebarOpen;
+
+        mobileCloseBtn?.addEventListener('click', function () {
+            setMobileSidebarOpen(false);
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('sidebar-backdrop')?.addEventListener('click', function () {
+                setMobileSidebarOpen(false);
+            });
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && sidebar.classList.contains('mobile-open')) {
+                setMobileSidebarOpen(false);
+            }
+        });
+
+        mobileMediaQuery.addEventListener('change', function (event) {
+            if (!event.matches) {
+                const backdrop = document.getElementById('sidebar-backdrop');
+                const mobileToggleBtn = document.getElementById('mobile-sidebar-toggle');
+
+                sidebar.classList.remove('mobile-open');
+                backdrop?.classList.add('hidden');
+                backdrop?.setAttribute('aria-hidden', 'true');
+                mobileToggleBtn?.setAttribute('aria-expanded', 'false');
+                document.body.classList.remove('overflow-hidden');
+            }
+        });
+
         // Tutup sidebar mobile kalau klik salah satu menu (biar tidak nyangkut kebuka)
         document.querySelectorAll('#sidebar .nav-link').forEach(function (link) {
             link.addEventListener('click', function () {
-                sidebar.classList.remove('mobile-open');
-                document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+                setMobileSidebarOpen(false);
             });
         });
     })();

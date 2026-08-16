@@ -1,20 +1,23 @@
-<header class="bg-white border-b border-slate-200 px-4 md:px-8 h-20 flex items-center justify-between">
+<header class="bg-white border-b border-slate-200 px-4 md:px-8 h-20 flex items-center justify-between gap-3 min-w-0">
 
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 min-w-0 flex-1">
 
         {{-- Mobile sidebar toggle --}}
         <button
             id="mobile-sidebar-toggle"
             type="button"
             class="md:hidden text-slate-500 hover:text-slate-900 p-2 -ml-2 rounded-lg hover:bg-slate-100"
+            aria-label="Buka menu navigasi"
+            aria-controls="sidebar"
+            aria-expanded="false"
         >
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
         </button>
 
-        <div>
-            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">
+        <div class="min-w-0">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight truncate">
                 @yield('page-title', 'Dashboard')
             </h2>
             <p class="text-xs text-slate-400 hidden md:block">
@@ -24,20 +27,20 @@
 
     </div>
 
-    <div class="flex items-center gap-2 md:gap-4">
+    <div class="flex items-center gap-1.5 md:gap-4 shrink-0">
 
         {{-- USER MENU --}}
         <div class="relative" id="user-menu">
             <button
                 id="user-menu-button"
                 type="button"
-                class="flex items-center gap-2.5 pl-2 pr-1 py-1 rounded-full hover:bg-slate-100"
+                class="flex items-center gap-1.5 md:gap-2.5 pl-2 pr-1 py-1 rounded-full hover:bg-slate-100"
             >
-                <div class="text-right hidden md:block">
-                    <p class="text-sm font-medium text-slate-800 leading-tight">
+                <div class="text-right min-w-0 max-w-24 md:max-w-none">
+                    <p class="text-xs md:text-sm font-medium text-slate-800 leading-tight truncate">
                         {{ Auth::user()->name }}
                     </p>
-                    <p class="text-[11px] text-slate-400 capitalize leading-tight">
+                    <p class="text-[10px] md:text-[11px] text-slate-400 capitalize leading-tight truncate">
                         {{ Auth::user()->role }}
                     </p>
                 </div>
@@ -101,21 +104,12 @@
         });
 
         // Mobile sidebar toggle
-        // Mobile sidebar toggle (off-canvas, bukan collapse desktop)
         const mobileBtn = document.getElementById('mobile-sidebar-toggle');
-        const backdrop = document.getElementById('sidebar-backdrop');
 
         if (mobileBtn) {
             mobileBtn.addEventListener('click', function () {
-                document.getElementById('sidebar')?.classList.toggle('mobile-open');
-                backdrop?.classList.toggle('hidden');
-            });
-        }
-
-        if (backdrop) {
-            backdrop.addEventListener('click', function () {
-                document.getElementById('sidebar')?.classList.remove('mobile-open');
-                backdrop.classList.add('hidden');
+                const sidebar = document.getElementById('sidebar');
+                window.setMobileSidebarOpen?.(!sidebar?.classList.contains('mobile-open'));
             });
         }
     })();
