@@ -3,14 +3,14 @@
 @section('content')
 <div class="p-4 space-y-4">
 
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
             <h1 class="text-2xl font-bold">Laporan Bulanan</h1>
             <p class="text-gray-500 text-sm">Laporan resmi rekap penjualan &amp; pembelian untuk owner.</p>
         </div>
 
         @can('create', App\Models\Laporan::class)
-            <a href="{{ route('laporan-bulanan.create') }}" class="bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold">+ Buat Laporan</a>
+            <a href="{{ route('laporan-bulanan.create') }}" class="w-full md:w-auto bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold text-center">+ Buat Laporan</a>
         @endcan
     </div>
 
@@ -24,7 +24,7 @@
             <p class="text-sm text-gray-500">{{ $laporan->count() }} laporan</p>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="text-left text-gray-500 border-b">
@@ -83,6 +83,65 @@
                 </tbody>
             </table>
         </div>
+
+        @if($laporan->isNotEmpty())
+            <div class="md:hidden divide-y">
+                @foreach($laporan as $item)
+                    @php
+                        $statusLabel = match($item->status) {
+                            'draft' => 'Draft',
+                            'terkirim' => 'Terkirim',
+                            'ditinjau' => 'Ditinjau',
+                        };
+                        $statusColor = match($item->status) {
+                            'draft' => 'text-gray-500',
+                            'terkirim' => 'text-blue-600',
+                            'ditinjau' => 'text-green-600',
+                        };
+                    @endphp
+
+                    <article class="p-4 space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="font-semibold break-words">{{ $item->kode_laporan }}</p>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    {{ $item->periode_awal->format('d M Y') }} &mdash; {{ $item->periode_akhir->format('d M Y') }}
+                                </p>
+                            </div>
+                            <span class="shrink-0 text-sm font-semibold {{ $statusColor }}">● {{ $statusLabel }}</span>
+                        </div>
+
+                        <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                            <div class="min-w-0">
+                                <dt class="text-xs text-gray-500">Total Penjualan</dt>
+                                <dd class="mt-0.5 font-semibold break-words">Rp {{ number_format($item->total_penjualan, 0, ',', '.') }}</dd>
+                            </div>
+                            <div class="min-w-0">
+                                <dt class="text-xs text-gray-500">Total Pembelian</dt>
+                                <dd class="mt-0.5 font-semibold break-words">Rp {{ number_format($item->total_pembelian, 0, ',', '.') }}</dd>
+                            </div>
+                            <div class="col-span-2 min-w-0">
+                                <dt class="text-xs text-gray-500">Dibuat Oleh</dt>
+                                <dd class="mt-0.5 break-words">{{ $item->pembuat->name ?? '-' }}</dd>
+                            </div>
+                        </dl>
+
+                        <a href="{{ route('laporan-bulanan.show', $item) }}" class="inline-block border rounded px-3 py-1.5 text-xs">Detail</a>
+                    </article>
+                @endforeach
+            </div>
+        @else
+            <div class="md:hidden text-center py-10 px-4">
+                <p class="font-semibold">Belum Ada Laporan</p>
+                <p class="text-sm text-gray-500 mt-1">
+                    @can('create', App\Models\Laporan::class)
+                        Buat laporan pertama untuk dikirim ke owner.
+                    @else
+                        Laporan akan muncul di sini setelah dikirim oleh admin.
+                    @endcan
+                </p>
+            </div>
+        @endif
     </div>
 
 </div>

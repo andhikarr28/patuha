@@ -18,10 +18,10 @@
 
         {{-- HEADER --}}
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
+            <div class="min-w-0">
                 <a href="{{ route('laporan-bulanan.index') }}" class="text-sm text-blue-600">← Kembali ke Daftar Laporan</a>
-                <div class="flex items-center gap-2 mt-1">
-                    <h1 class="text-2xl font-bold">{{ $laporan->kode_laporan }}</h1>
+                <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <h1 class="text-2xl font-bold break-words">{{ $laporan->kode_laporan }}</h1>
                     <span class="text-sm font-semibold {{ $statusColor }}">● {{ $statusLabel }}</span>
                 </div>
                 <p class="text-gray-500 text-sm">
@@ -30,17 +30,17 @@
                 </p>
             </div>
 
-            <div class="flex flex-wrap gap-2">
+            <div class="grid grid-cols-1 gap-2 md:flex md:flex-wrap w-full md:w-auto">
                 <a href="{{ route('laporan-bulanan.pdf', $laporan) }}"
-                    class="bg-slate-800 text-white rounded px-4 py-2 text-sm font-semibold text-center">
+                    class="w-full md:w-auto bg-slate-800 text-white rounded px-4 py-2 text-sm font-semibold text-center">
                     ⬇ PDF Lengkap
                 </a>
                 <a href="{{ route('laporan-bulanan.pdf-penjualan', $laporan) }}"
-                    class="bg-green-600 text-white rounded px-4 py-2 text-sm font-semibold text-center">
+                    class="w-full md:w-auto bg-green-600 text-white rounded px-4 py-2 text-sm font-semibold text-center">
                     ⬇ PDF Penjualan
                 </a>
                 <a href="{{ route('laporan-bulanan.pdf-pembelian', $laporan) }}"
-                    class="bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold text-center">
+                    class="w-full md:w-auto bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold text-center">
                     ⬇ PDF Pembelian
                 </a>
             </div>
@@ -98,7 +98,7 @@
             @php
                 $selisih = $laporan->total_penjualan - $laporan->total_pembelian;
             @endphp
-            <div class="mt-3 flex justify-between items-center bg-slate-900 text-white rounded p-3">
+            <div class="mt-3 flex flex-col gap-1 md:flex-row md:justify-between md:items-center bg-slate-900 text-white rounded p-3">
                 <span class="text-sm">Selisih Penjualan &ndash; Pembelian</span>
                 <span class="text-xl font-bold {{ $selisih >= 0 ? 'text-green-400' : 'text-red-400' }}">
                     Rp {{ number_format($selisih, 0, ',', '.') }}
@@ -137,7 +137,7 @@
             @if(empty($laporan->barang_terlaris))
                 <p class="text-sm text-gray-400">Tidak ada data penjualan pada periode ini.</p>
             @else
-                <div class="overflow-x-auto">
+                <div class="hidden md:block overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="text-left text-gray-500 border-b">
@@ -161,6 +161,19 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="md:hidden space-y-3">
+                    @foreach($laporan->barang_terlaris as $item)
+                        <div class="border rounded p-3 text-sm space-y-1">
+                            <p class="font-semibold break-words">{{ $item['nama_barang'] }}</p>
+                            <p class="text-gray-500 break-words">{{ $item['warna'] }} / {{ $item['ukuran'] }}</p>
+                            <p class="font-mono text-xs text-gray-500 break-all">{{ $item['sku'] }}</p>
+                            <div class="flex justify-between gap-3 pt-1">
+                                <span>Qty: <strong>{{ $item['total_qty'] }}</strong></span>
+                                <span class="text-right">Rp {{ number_format($item['total_omzet'], 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
             @endif
         </div>
 
@@ -171,7 +184,7 @@
             @if(empty($laporan->barang_kurang_laku))
                 <p class="text-sm text-gray-400">Tidak ada data penjualan pada periode ini.</p>
             @else
-                <div class="overflow-x-auto">
+                <div class="hidden md:block overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="text-left text-gray-500 border-b">
@@ -194,6 +207,19 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+                <div class="md:hidden space-y-3">
+                    @foreach($laporan->barang_kurang_laku as $item)
+                        <div class="border rounded p-3 text-sm space-y-1">
+                            <p class="font-semibold break-words">{{ $item['nama_barang'] }}</p>
+                            <p class="text-gray-500 break-words">{{ $item['warna'] }} / {{ $item['ukuran'] }}</p>
+                            <p class="font-mono text-xs text-gray-500 break-all">{{ $item['sku'] }}</p>
+                            <div class="flex justify-between gap-3 pt-1">
+                                <span>Qty: <strong>{{ $item['total_qty'] }}</strong></span>
+                                <span class="text-right">Rp {{ number_format($item['total_omzet'], 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             @endif
         </div>
@@ -233,12 +259,12 @@
                 <div class="space-y-3 max-h-96 overflow-y-auto">
                     @foreach($laporan->detail_transaksi_penjualan as $trx)
                         <div class="border rounded p-3">
-                            <div class="flex justify-between text-sm font-semibold mb-2">
-                                <span>#{{ $trx['id'] }} &middot; {{ $trx['tanggal'] }} &middot;
+                            <div class="flex flex-col gap-1 md:flex-row md:justify-between text-sm font-semibold mb-2 min-w-0">
+                                <span class="break-words">#{{ $trx['id'] }} &middot; {{ $trx['tanggal'] }} &middot;
                                     {{ ucfirst($trx['channel']) }}</span>
-                                <span>Rp {{ number_format($trx['total'], 0, ',', '.') }}</span>
+                                <span class="shrink-0">Rp {{ number_format($trx['total'], 0, ',', '.') }}</span>
                             </div>
-                            <table class="w-full text-xs">
+                            <table class="hidden md:table w-full text-xs">
                                 <thead>
                                     <tr class="text-left text-gray-400 border-b">
                                         <th class="py-1">Barang</th>
@@ -258,6 +284,18 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            <div class="md:hidden space-y-2">
+                                @foreach($trx['items'] as $item)
+                                    <div class="bg-slate-50 rounded p-2 text-xs space-y-1">
+                                        <p class="font-semibold break-words">{{ $item['nama_barang'] }}</p>
+                                        <p class="text-gray-500 break-words">{{ $item['warna'] }} / {{ $item['ukuran'] }}</p>
+                                        <div class="flex justify-between gap-3">
+                                            <span>Qty: {{ $item['qty'] }}</span>
+                                            <span class="text-right">Rp {{ number_format($item['subtotal'], 0, ',', '.') }}</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
                     @endforeach
                 </div>
@@ -275,11 +313,11 @@
                 <div class="space-y-3 max-h-96 overflow-y-auto">
                     @foreach($laporan->detail_transaksi_pembelian as $trx)
                         <div class="border rounded p-3">
-                            <div class="flex justify-between text-sm font-semibold mb-2">
-                                <span>#{{ $trx['id'] }} &middot; {{ $trx['tanggal'] }} &middot; {{ $trx['supplier'] }}</span>
-                                <span>Rp {{ number_format($trx['total'], 0, ',', '.') }}</span>
+                            <div class="flex flex-col gap-1 md:flex-row md:justify-between text-sm font-semibold mb-2 min-w-0">
+                                <span class="break-words">#{{ $trx['id'] }} &middot; {{ $trx['tanggal'] }} &middot; {{ $trx['supplier'] }}</span>
+                                <span class="shrink-0">Rp {{ number_format($trx['total'], 0, ',', '.') }}</span>
                             </div>
-                            <table class="w-full text-xs">
+                            <table class="hidden md:table w-full text-xs">
                                 <thead>
                                     <tr class="text-left text-gray-400 border-b">
                                         <th class="py-1">Barang</th>
@@ -299,6 +337,18 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            <div class="md:hidden space-y-2">
+                                @foreach($trx['items'] as $item)
+                                    <div class="bg-slate-50 rounded p-2 text-xs space-y-1">
+                                        <p class="font-semibold break-words">{{ $item['nama_barang'] }}</p>
+                                        <p class="text-gray-500 break-words">{{ $item['warna'] }} / {{ $item['ukuran'] }}</p>
+                                        <div class="flex justify-between gap-3">
+                                            <span>Qty: {{ $item['qty'] }}</span>
+                                            <span class="text-right">Rp {{ number_format($item['subtotal'], 0, ',', '.') }}</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
                     @endforeach
                 </div>
@@ -322,7 +372,7 @@
                     onsubmit="return confirm('Kirim laporan ini ke owner? Laporan tidak dapat diedit lagi setelah dikirim.')">
                     @csrf
                     @method('PATCH')
-                    <button type="submit" class="bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold">Kirim ke
+                    <button type="submit" class="w-full md:w-auto bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold">Kirim ke
                         Owner</button>
                 </form>
             </div>
@@ -338,7 +388,7 @@
                     <textarea name="keputusan_owner" rows="4"
                         placeholder="Tulis keputusan atau arahan berdasarkan laporan ini..."
                         class="w-full border rounded px-3 py-2 text-sm mb-3" required>{{ old('keputusan_owner') }}</textarea>
-                    <button type="submit" class="bg-green-600 text-white rounded px-4 py-2 text-sm font-semibold">Simpan
+                    <button type="submit" class="w-full md:w-auto bg-green-600 text-white rounded px-4 py-2 text-sm font-semibold">Simpan
                         Keputusan</button>
                 </form>
             </div>
