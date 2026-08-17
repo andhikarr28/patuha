@@ -249,13 +249,17 @@
 
     /* --- MOBILE: sidebar jadi off-canvas, hilang dari layar sampai dibuka --- */
     @media (max-width: 767px) {
-        #sidebar {
+        #sidebar,
+        #sidebar.collapsed {
             position: fixed;
             top: 0;
+            bottom: 0;
             left: 0;
             height: 100vh;
             z-index: 50;
-            width: 256px !important;
+            flex: none;
+            width: 18rem !important;
+            max-width: calc(100vw - 1rem);
             transform: translateX(-100%);
         }
 
@@ -274,6 +278,14 @@
         #sidebar.collapsed .nav-link {
             justify-content: flex-start;
             padding: 8px 10px;
+        }
+
+        #sidebar.collapsed #sidebar-user {
+            justify-content: flex-start;
+        }
+
+        #sidebar.collapsed .p-4.border-b {
+            justify-content: space-between;
         }
 
         #sidebar-toggle {
