@@ -68,6 +68,10 @@
                             @php
                                 $jumlahVarian = $item->varians_count ?? 0;
                                 $totalStok = $item->varians_sum_stok ?? 0;
+                                $jumlahAman = $item->varians_aman_count ?? 0;
+                                $jumlahMenipis = $item->varians_menipis_count ?? 0;
+                                $jumlahHabis = $item->varians_habis_count ?? 0;
+                                $semuaVarianHabis = $jumlahVarian > 0 && $jumlahHabis === $jumlahVarian;
                             @endphp
                             <tr class="border-b">
                                 <td class="px-4 py-3">
@@ -97,10 +101,30 @@
                                 <td class="px-4 py-3 text-center">
                                     @if($jumlahVarian == 0)
                                         <span class="text-gray-400">Belum ada varian</span>
-                                    @elseif($totalStok <= 0)
-                                        <span class="text-red-600 font-semibold">Habis</span>
                                     @else
-                                        <span class="text-green-700 font-semibold">{{ number_format($totalStok, 0, ',', '.') }} unit</span>
+                                        <p class="font-semibold {{ $semuaVarianHabis ? 'text-red-600' : 'text-green-700' }}">
+                                            {{ number_format($totalStok, 0, ',', '.') }} unit
+                                        </p>
+
+                                        @if($semuaVarianHabis)
+                                            <p class="mt-1 text-xs font-semibold text-red-600">Stok Habis</p>
+                                        @elseif($jumlahMenipis > 0 || $jumlahHabis > 0)
+                                            <p class="mt-1 text-xs">
+                                                @if($jumlahAman > 0)
+                                                    <span class="text-green-700">{{ $jumlahAman }} Aman</span>
+                                                @endif
+                                                @if($jumlahMenipis > 0)
+                                                    @if($jumlahAman > 0)<span class="text-gray-400">&middot;</span>@endif
+                                                    <span class="text-yellow-600">{{ $jumlahMenipis }} Menipis</span>
+                                                @endif
+                                                @if($jumlahHabis > 0)
+                                                    @if($jumlahAman > 0 || $jumlahMenipis > 0)<span class="text-gray-400">&middot;</span>@endif
+                                                    <span class="text-red-600">{{ $jumlahHabis }} Habis</span>
+                                                @endif
+                                            </p>
+                                        @else
+                                            <p class="mt-1 text-xs font-semibold text-green-700">Semua varian aman</p>
+                                        @endif
                                     @endif
                                 </td>
                                 
@@ -128,6 +152,10 @@
                     @php
                         $jumlahVarian = $item->varians_count ?? 0;
                         $totalStok = $item->varians_sum_stok ?? 0;
+                        $jumlahAman = $item->varians_aman_count ?? 0;
+                        $jumlahMenipis = $item->varians_menipis_count ?? 0;
+                        $jumlahHabis = $item->varians_habis_count ?? 0;
+                        $semuaVarianHabis = $jumlahVarian > 0 && $jumlahHabis === $jumlahVarian;
                     @endphp
 
                     <article class="p-4 space-y-4">
@@ -173,10 +201,30 @@
                                 <dd class="mt-0.5">
                                     @if($jumlahVarian == 0)
                                         <span class="text-gray-400">Belum ada varian</span>
-                                    @elseif($totalStok <= 0)
-                                        <span class="text-red-600 font-semibold">Habis</span>
                                     @else
-                                        <span class="text-green-700 font-semibold">{{ number_format($totalStok, 0, ',', '.') }} unit</span>
+                                        <p class="font-semibold {{ $semuaVarianHabis ? 'text-red-600' : 'text-green-700' }}">
+                                            {{ number_format($totalStok, 0, ',', '.') }} unit
+                                        </p>
+
+                                        @if($semuaVarianHabis)
+                                            <p class="mt-1 text-xs font-semibold text-red-600">Stok Habis</p>
+                                        @elseif($jumlahMenipis > 0 || $jumlahHabis > 0)
+                                            <p class="mt-1 text-xs">
+                                                @if($jumlahAman > 0)
+                                                    <span class="text-green-700">{{ $jumlahAman }} Aman</span>
+                                                @endif
+                                                @if($jumlahMenipis > 0)
+                                                    @if($jumlahAman > 0)<span class="text-gray-400">&middot;</span>@endif
+                                                    <span class="text-yellow-600">{{ $jumlahMenipis }} Menipis</span>
+                                                @endif
+                                                @if($jumlahHabis > 0)
+                                                    @if($jumlahAman > 0 || $jumlahMenipis > 0)<span class="text-gray-400">&middot;</span>@endif
+                                                    <span class="text-red-600">{{ $jumlahHabis }} Habis</span>
+                                                @endif
+                                            </p>
+                                        @else
+                                            <p class="mt-1 text-xs font-semibold text-green-700">Semua varian aman</p>
+                                        @endif
                                     @endif
                                 </dd>
                             </div>

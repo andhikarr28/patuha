@@ -13,7 +13,16 @@ class BarangController extends Controller
     public function index(Request $request)
     {
         $query = Barang::with('kategori', 'supplier')
-            ->withCount('varians')
+            ->withCount([
+                'varians',
+                'varians as varians_aman_count' => fn ($query) => $query
+                    ->whereColumn('stok', '>', 'stok_minimum'),
+                'varians as varians_menipis_count' => fn ($query) => $query
+                    ->where('stok', '>', 0)
+                    ->whereColumn('stok', '<=', 'stok_minimum'),
+                'varians as varians_habis_count' => fn ($query) => $query
+                    ->where('stok', '<=', 0),
+            ])
             ->withSum('varians', 'stok');
 
         /*

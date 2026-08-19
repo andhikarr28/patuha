@@ -101,10 +101,12 @@
                                         <p class="text-sm text-slate-500">
                                             {{ $item->warna ?: '-' }}{{ $item->ukuran ? ' / ' . $item->ukuran : '' }} &middot;
                                             SKU {{ $item->sku ?? '-' }}</p>
-                                        @if($item->stok > 0)
-                                            <p class="text-xs font-semibold text-green-700 mt-0.5">Stok {{ $item->stok }}</p>
-                                        @else
+                                        @if($item->stok <= 0)
                                             <p class="text-xs font-semibold text-red-600 mt-0.5">Stok habis</p>
+                                        @elseif($item->stok <= $item->stok_minimum)
+                                            <p class="text-xs font-semibold text-yellow-600 mt-0.5">Stok {{ $item->stok }} &middot; Stok menipis</p>
+                                        @else
+                                            <p class="text-xs font-semibold text-green-700 mt-0.5">Stok {{ $item->stok }}</p>
                                         @endif
                                     </div>
 

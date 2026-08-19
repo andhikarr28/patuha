@@ -63,7 +63,9 @@ class PenjualanController extends Controller
 
             foreach ($request->cart as $item) {
 
-                $varian = VarianBarang::findOrFail($item['varian_id']);
+                $varian = VarianBarang::whereKey($item['varian_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
                 if ($varian->stok < $item['qty']) {
                     DB::rollBack();

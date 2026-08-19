@@ -118,7 +118,8 @@
                                     $ukuran = $item->ukuran ?? '-';
                                     $sku = $item->sku ?? '-';
                                     $foto = $item->barang?->foto ?? null;
-                                    $stokMenipis = $item->stok <= $item->stok_minimum;
+                                    $stokHabis = $item->stok <= 0;
+                                    $stokMenipis = $item->stok > 0 && $item->stok <= $item->stok_minimum;
                                 @endphp
 
                                 <div x-show="productVisible(@js($namaBarang), @js($sku), @js($warna), @js($ukuran), @js($kategori), @js($supplierIdBarang))"
@@ -138,9 +139,13 @@
                                         <p class="font-bold text-slate-900 truncate">{{ $namaBarang }}</p>
                                         <p class="text-sm text-slate-500">{{ $warna }} / {{ $ukuran }} &middot; SKU {{ $sku }}
                                         </p>
-                                        <p
-                                            class="text-xs font-semibold mt-0.5 {{ $stokMenipis ? 'text-red-600' : 'text-green-700' }}">
-                                            Stok {{ $item->stok }}</p>
+                                        @if($stokHabis)
+                                            <p class="text-xs font-semibold text-red-600 mt-0.5">Stok Habis</p>
+                                        @elseif($stokMenipis)
+                                            <p class="text-xs font-semibold text-yellow-600 mt-0.5">Stok Menipis</p>
+                                        @else
+                                            <p class="text-xs font-semibold text-green-700 mt-0.5">Stok {{ $item->stok }}</p>
+                                        @endif
                                     </div>
 
                                     {{-- supplier sudah dipilih dan cocok: bisa ditambah --}}

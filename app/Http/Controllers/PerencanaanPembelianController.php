@@ -42,7 +42,7 @@ class PerencanaanPembelianController extends Controller
         }
 
         $varian = $query
-            ->orderByRaw('CASE WHEN stok <= stok_minimum THEN 0 ELSE 1 END')
+            ->orderByRaw('CASE WHEN stok <= 0 THEN 0 WHEN stok <= stok_minimum THEN 1 ELSE 2 END')
             ->orderBy('stok', 'asc')
             ->get();
 
