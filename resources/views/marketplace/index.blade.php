@@ -37,24 +37,6 @@
         @endif
     @endif
 
-    @if(session('sync_stock_results'))
-        <div class="border rounded">
-            <div class="px-4 py-3 border-b">
-                <h2 class="font-bold">Hasil Rekonsiliasi Stok Shopee</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead><tr class="text-left text-gray-500 border-b"><th class="px-4 py-2">Varian</th><th class="px-4 py-2 text-right">Lokal Sebelum</th><th class="px-4 py-2 text-right">Shopee</th><th class="px-4 py-2 text-right">Lokal Sesudah</th><th class="px-4 py-2">Keterangan</th></tr></thead>
-                    <tbody>
-                        @foreach(session('sync_stock_results') as $hasil)
-                            <tr class="border-b"><td class="px-4 py-2">{{ $hasil['varian'] }}</td><td class="px-4 py-2 text-right">{{ $hasil['stok_lokal_sebelum'] ?? '-' }}</td><td class="px-4 py-2 text-right">{{ $hasil['stok_shopee'] ?? '-' }}</td><td class="px-4 py-2 text-right">{{ $hasil['stok_lokal_sesudah'] ?? '-' }}</td><td class="px-4 py-2">{{ $hasil['keterangan'] }}</td></tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    @endif
-
     @if(session('sync_order_results'))
         <div class="border rounded">
             <div class="px-4 py-3 border-b"><h2 class="font-bold">Hasil Import Order Shopee</h2></div>
@@ -172,7 +154,7 @@
             {{-- STOK --}}
             <div class="border rounded p-4">
                 <h3 class="font-semibold mb-1">Sinkronisasi Stok</h3>
-                <p class="text-sm text-gray-500 mb-3">Samakan jumlah stok antara marketplace dan sistem lokal.</p>
+                <p class="text-sm text-gray-500 mb-3">Gunakan stok Shopee untuk memperbarui stok lokal.</p>
 
                 <div class="grid grid-cols-2 gap-2">
                     <form action="{{ route('marketplace.sync.stocks') }}" method="POST">
@@ -192,16 +174,16 @@
 
             {{-- ORDER --}}
             <div class="border rounded p-4">
-                <h3 class="font-semibold mb-1">Sinkronisasi Pesanan</h3>
-                <p class="text-sm text-gray-500 mb-3">Ambil transaksi terbaru dari Shopee ke sistem.</p>
+                <h3 class="font-semibold mb-1">Ambil Pesanan Shopee</h3>
+                <p class="text-sm text-gray-500 mb-3">Ambil pesanan terbaru dari Shopee dan catat sebagai transaksi penjualan.</p>
 
                 <form action="{{ route('marketplace.sync.orders') }}" method="POST">
                     @csrf
-                    <button type="submit" class="w-full bg-cyan-600 text-white rounded px-4 py-2 text-sm font-semibold">🛒 Ambil Pesanan dari Shopee</button>
+                    <button type="submit" class="w-full bg-cyan-600 text-white rounded px-4 py-2 text-sm font-semibold">🛒 Ambil Pesanan</button>
                 </form>
 
                 <p class="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2 mt-3">
-                    Pesanan yang diambil akan diproses sebagai penjualan marketplace dan menyesuaikan stok lokal.
+                    Pesanan valid akan dicatat sebagai penjualan marketplace dan menyesuaikan stok lokal.
                 </p>
             </div>
 

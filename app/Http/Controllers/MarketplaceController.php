@@ -300,8 +300,8 @@ class MarketplaceController extends Controller
             ->get();
 
         $jumlahSkuLokal = $varians
-            ->filter(fn ($varian) => trim((string) $varian->sku) !== '')
-            ->groupBy(fn ($varian) => $this->normaliseSku($varian->sku))
+            ->filter(fn($varian) => trim((string) $varian->sku) !== '')
+            ->groupBy(fn($varian) => $this->normaliseSku($varian->sku))
             ->map->count();
 
         foreach ($models as $model) {
@@ -485,50 +485,65 @@ class MarketplaceController extends Controller
 
     public function syncMarketplaceStockToLocal()
     {
-        return $this->reconcileMarketplaceStockToLocal();
-
-        $models = MarketplaceItemModel::all();
-
-        foreach ($models as $model) {
+        foreach (MarketplaceItemModel::all() as $itemModel) {
 
             $mapping = MarketplaceMapping::where(
                 'marketplace_item_model_id',
-                $model->id
+                $itemModel->id
             )->first();
 
             if (!$mapping) {
                 continue;
             }
 
-            VarianBarang::where(
-                'id',
+            if ($itemModel->stok === null || (int) $itemModel->stok < 0) {
+                continue;
+            }
+
+            $varian = VarianBarang::find(
                 $mapping->varian_id
-            )->update([
-                        'stok' => $model->stok
-                    ]);
+            );
+
+            if (!$varian) {
+                continue;
+            }
+
+            $varian->update([
+                'stok' => (int) $itemModel->stok,
+            ]);
         }
 
-        MarketplaceSyncLog::create([
-            'marketplace_id' => 1,
-            'jumlah_produk' => MarketplaceItem::count(),
-            'jumlah_varian' => MarketplaceItemModel::count(),
-            'sync_at' => now(),
-        ]);
+        $marketplace = Marketplace::first();
 
-        Marketplace::where('id', 1)
-            ->update([
+        if ($marketplace) {
+
+            MarketplaceSyncLog::create([
+                'marketplace_id' => $marketplace->id,
+                'aktivitas' => 'Sync Stok',
+                'arah_sync' => 'Shopee -> Lokal',
+                'jumlah_produk' => MarketplaceItem::count(),
+                'jumlah_varian' => MarketplaceItemModel::count(),
+                'sync_at' => now(),
+            ]);
+
+            $marketplace->update([
                 'last_sync' => now()
             ]);
+        }
 
         return back()->with(
             'success',
-            'Sinkronisasi stok berhasil'
+            'Sinkronisasi stok Shopee → Lokal berhasil.'
         );
     }
 
     public function syncProducts()
     {
         $token = MarketplaceToken::first();
+
+        if (!$token) {
+            return back()->with('error', 'Token Shopee belum tersedia. Hubungkan akun Shopee terlebih dahulu.');
+        }
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
@@ -564,7 +579,26 @@ class MarketplaceController extends Controller
             ]
         );
 
-        $items = $response['response']['item'];
+        $body = $response->json();
+
+        if (
+            $response->failed() ||
+            !empty($body['error']) ||
+            !isset($body['response']['item']) ||
+            !is_array($body['response']['item'])
+        ) {
+            Log::warning('Sinkron produk Shopee gagal', [
+                'status' => $response->status(),
+                'response' => $body,
+            ]);
+
+            return back()->with(
+                'error',
+                'Produk Shopee tidak dapat diambil. Periksa token Shopee dan koneksi API, lalu coba lagi.'
+            );
+        }
+
+        $items = $body['response']['item'];
 
         foreach ($items as $itemData) {
 
@@ -583,6 +617,10 @@ class MarketplaceController extends Controller
     private function saveItemDetail($itemId)
     {
         $token = MarketplaceToken::first();
+
+        if (!$token) {
+            return false;
+        }
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
@@ -616,8 +654,18 @@ class MarketplaceController extends Controller
             ]
         );
 
-        $item =
-            $response['response']['item_list'][0];
+        $body = $response->json();
+        $item = $body['response']['item_list'][0] ?? null;
+
+        if ($response->failed() || !empty($body['error']) || !$item) {
+            Log::warning('Detail produk Shopee gagal diambil', [
+                'item_id' => $itemId,
+                'status' => $response->status(),
+                'response' => $body,
+            ]);
+
+            return false;
+        }
 
         MarketplaceItem::updateOrCreate(
             [
@@ -632,6 +680,8 @@ class MarketplaceController extends Controller
                 'kategori_id' => $item['category_id'],
             ]
         );
+
+        return true;
     }
 
     public function getShopeeOrderList()
@@ -727,376 +777,6 @@ class MarketplaceController extends Controller
     public function syncOrdersToLocal()
     {
         return $this->importShopeeOrdersAtomically();
-
-        $orderSnList = $this->getShopeeOrderList();
-
-        $data = $this->getShopeeOrderDetails(
-            $orderSnList
-        );
-
-        $hasil = [];
-
-        foreach (
-            $data['response']['order_list']
-            as $order
-        ) {
-
-            $orderSn =
-                $order['order_sn'];
-
-            if (
-                in_array(
-                    $order['order_status'],
-                    [
-                        'CANCELLED',
-                        'IN_CANCEL'
-                    ]
-                )
-            ) {
-
-                $exists =
-                    MarketplaceOrderLog::where(
-                        'order_sn',
-                        $orderSn
-                    )->exists();
-
-                if (!$exists) {
-
-                    MarketplaceOrderLog::create([
-                        'order_sn' =>
-                            $orderSn,
-
-                        'status' =>
-                            'CANCELLED',
-
-                        'synced_at' =>
-                            now(),
-                    ]);
-                }
-
-                $hasil[] = [
-                    'order_sn' =>
-                        $orderSn,
-
-                    'status' =>
-                        'CANCELLED',
-
-                    'keterangan' =>
-                        'ORDER DIABAIKAN'
-                ];
-
-                continue;
-            }
-
-            $alreadySynced =
-                MarketplaceOrderLog::where(
-                    'order_sn',
-                    $orderSn
-                )->exists();
-
-            if ($alreadySynced) {
-
-                $hasil[] = [
-                    'order_sn' => $orderSn,
-                    'status' => 'SUDAH PERNAH SYNC'
-                ];
-
-                continue;
-            }
-
-            DB::beginTransaction();
-
-            try {
-
-                $penjualan =
-                    Penjualan::create([
-                        'no_nota' =>
-                            'SHP-' . $orderSn,
-
-                        'tanggal_penjualan' =>
-                            now(),
-
-                        'channel' =>
-                            'shopee',
-
-                        'total' =>
-                            0,
-
-                        'user_id' =>
-                            1,
-
-                        'metode_pembayaran' =>
-                            $order['payment_method']
-                            ?? 'Shopee',
-                    ]);
-
-                $totalPenjualan = 0;
-
-                foreach (
-                    $order['item_list']
-                    as $item
-                ) {
-
-                    $modelId =
-                        $item['model_id'];
-
-                    $itemModel =
-                        MarketplaceItemModel::where(
-                            'model_id',
-                            $modelId
-                        )->first();
-
-                    if (!$itemModel) {
-                        continue;
-                    }
-
-                    $mapping =
-                        MarketplaceMapping::where(
-                            'marketplace_item_model_id',
-                            $itemModel->id
-                        )->first();
-
-                    if (!$mapping) {
-                        continue;
-                    }
-
-                    $varian =
-                        VarianBarang::with('barang')
-                            ->find(
-                                $mapping->varian_id
-                            );
-
-                    if (!$varian) {
-                        continue;
-                    }
-
-                    $qty =
-                        $item['model_quantity_purchased'];
-
-                    $harga =
-                        $item['model_discounted_price'];
-
-                    $subtotal =
-                        $qty * $harga;
-
-                    $stokSebelum =
-                        $varian->stok;
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Detail Penjualan
-                    |--------------------------------------------------------------------------
-                    */
-                    DetailPenjualan::create([
-                        'penjualan_id' =>
-                            $penjualan->id,
-
-                        'varian_id' =>
-                            $varian->id,
-
-                        'qty' =>
-                            $qty,
-
-                        'harga' =>
-                            $harga,
-
-                        'subtotal' =>
-                            $subtotal,
-                    ]);
-                    $varian->decrement(
-                        'stok',
-                        $qty
-                    );
-
-                    $stokSesudah =
-                        $stokSebelum - $qty;
-
-                    StokLog::create([
-                        'varian_id' =>
-                            $varian->id,
-
-                        'tipe_transaksi' =>
-                            'penjualan',
-
-                        'qty' =>
-                            $qty,
-
-                        'stok_sebelum' =>
-                            $stokSebelum,
-
-                        'stok_sesudah' =>
-                            $stokSesudah,
-
-                        'referensi' =>
-                            'SHP-' . $orderSn,
-                    ]);
-
-                    $totalPenjualan +=
-                        $subtotal;
-
-                    $hasil[] = [
-                        'order_sn' =>
-                            $orderSn,
-
-                        'nama_barang' =>
-                            $varian
-                                ->barang
-                                ->nama_barang,
-
-                        'qty' =>
-                            $qty,
-
-                        'harga' =>
-                            $harga,
-
-                        'subtotal' =>
-                            $subtotal,
-
-                        'stok_sebelum' =>
-                            $stokSebelum,
-
-                        'stok_sesudah' =>
-                            $stokSesudah,
-                    ];
-                }
-
-                $penjualan->update([
-                    'total' =>
-                        $totalPenjualan
-                ]);
-
-                MarketplaceOrderLog::create([
-                    'order_sn' =>
-                        $orderSn,
-
-                    'status' =>
-                        $order['order_status'],
-
-                    'synced_at' =>
-                        now(),
-                ]);
-
-                DB::commit();
-
-            } catch (\Exception $e) {
-
-                DB::rollBack();
-
-                $hasil[] = [
-                    'order_sn' =>
-                        $orderSn,
-
-                    'error' =>
-                        $e->getMessage()
-                ];
-            }
-        }
-
-        return back()->with(
-            'success',
-            'Sinkronisasi pesanan berhasil.'
-        );
-    }
-
-    protected function reconcileMarketplaceStockToLocal()
-    {
-        $hasil = [];
-
-        try {
-            DB::transaction(function () use (&$hasil) {
-                $models = MarketplaceItemModel::all();
-
-                foreach ($models as $model) {
-                    $mapping = MarketplaceMapping::where(
-                        'marketplace_item_model_id',
-                        $model->id
-                    )->first();
-
-                    if (!$mapping) {
-                        $hasil[] = [
-                            'status' => 'dilewati',
-                            'varian' => $model->model_sku ?? ('Model #' . $model->model_id),
-                            'stok_lokal_sebelum' => null,
-                            'stok_shopee' => (int) $model->stok,
-                            'stok_lokal_sesudah' => null,
-                            'keterangan' => 'Mapping tidak tersedia.',
-                        ];
-                        continue;
-                    }
-
-                    $varian = VarianBarang::whereKey($mapping->varian_id)
-                        ->lockForUpdate()
-                        ->first();
-
-                    if (!$varian) {
-                        $hasil[] = [
-                            'status' => 'dilewati',
-                            'varian' => $model->model_sku ?? ('Model #' . $model->model_id),
-                            'stok_lokal_sebelum' => null,
-                            'stok_shopee' => (int) $model->stok,
-                            'stok_lokal_sesudah' => null,
-                            'keterangan' => 'Varian lokal tidak ditemukan.',
-                        ];
-                        continue;
-                    }
-
-                    $stokShopee = (int) $model->stok;
-                    $stokSebelum = (int) $varian->stok;
-
-                    if ($stokShopee < 0) {
-                        $hasil[] = [
-                            'status' => 'dilewati',
-                            'varian' => $varian->sku ?? ('Varian #' . $varian->id),
-                            'stok_lokal_sebelum' => $stokSebelum,
-                            'stok_shopee' => $stokShopee,
-                            'stok_lokal_sesudah' => $stokSebelum,
-                            'keterangan' => 'Stok Shopee tidak valid.',
-                        ];
-                        continue;
-                    }
-
-                    if ($stokSebelum !== $stokShopee) {
-                        $varian->update(['stok' => $stokShopee]);
-
-                        StokLog::create([
-                            'varian_id' => $varian->id,
-                            'tipe_transaksi' => 'rekonsiliasi_shopee',
-                            'qty' => abs($stokShopee - $stokSebelum),
-                            'stok_sebelum' => $stokSebelum,
-                            'stok_sesudah' => $stokShopee,
-                            'referensi' => 'Shopee model ' . $model->model_id,
-                        ]);
-
-                        $keterangan = 'Stok lokal diperbarui dari rekonsiliasi manual.';
-                        $status = 'diperbarui';
-                    } else {
-                        $keterangan = 'Stok sudah sama.';
-                        $status = 'sama';
-                    }
-
-                    $hasil[] = [
-                        'status' => $status,
-                        'varian' => $varian->sku ?? ('Varian #' . $varian->id),
-                        'stok_lokal_sebelum' => $stokSebelum,
-                        'stok_shopee' => $stokShopee,
-                        'stok_lokal_sesudah' => $stokShopee,
-                        'keterangan' => $keterangan,
-                    ];
-                }
-            });
-        } catch (\Throwable $e) {
-            Log::error('Rekonsiliasi stok Shopee ke lokal gagal', [
-                'message' => $e->getMessage(),
-            ]);
-
-            return back()->with('error', 'Rekonsiliasi stok gagal. Periksa log aplikasi.');
-        }
-
-        $jumlahDiubah = collect($hasil)->where('status', 'diperbarui')->count();
-
-        return back()
-            ->with('success', "Rekonsiliasi selesai. {$jumlahDiubah} varian diperbarui.")
-            ->with('sync_stock_results', $hasil);
     }
 
     protected function importShopeeOrdersAtomically()
@@ -1121,11 +801,19 @@ class MarketplaceController extends Controller
             }
 
             if (in_array($order['order_status'] ?? null, ['CANCELLED', 'IN_CANCEL'], true)) {
-                MarketplaceOrderLog::firstOrCreate(
-                    ['order_sn' => $orderSn],
-                    ['status' => 'CANCELLED', 'synced_at' => now()]
-                );
-                $hasil[] = ['order_sn' => $orderSn, 'status' => 'DILEWATI', 'keterangan' => 'Order dibatalkan.'];
+                try {
+                    $hasil[] = $this->handleCancelledShopeeOrder($orderSn);
+                } catch (\Throwable $e) {
+                    Log::warning('Pembatalan order Shopee gagal', [
+                        'order_sn' => $orderSn,
+                        'message' => $e->getMessage(),
+                    ]);
+                    $hasil[] = [
+                        'order_sn' => $orderSn,
+                        'status' => 'GAGAL',
+                        'keterangan' => 'Pembatalan order tidak dapat diproses.',
+                    ];
+                }
                 continue;
             }
 
@@ -1266,6 +954,89 @@ class MarketplaceController extends Controller
         return back()
             ->with($gagal > 0 ? 'error' : 'success', "Sinkronisasi order selesai: {$berhasil} berhasil, {$gagal} gagal.")
             ->with('sync_order_results', $hasil);
+    }
+
+    protected function handleCancelledShopeeOrder(string $orderSn): array
+    {
+        return DB::transaction(function () use ($orderSn) {
+            $orderLog = MarketplaceOrderLog::where('order_sn', $orderSn)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$orderLog) {
+                MarketplaceOrderLog::create([
+                    'order_sn' => $orderSn,
+                    'status' => 'CANCELLED',
+                    'synced_at' => now(),
+                ]);
+
+                return [
+                    'order_sn' => $orderSn,
+                    'status' => 'DILEWATI',
+                    'keterangan' => 'Order dibatalkan sebelum pernah diimport.',
+                ];
+            }
+
+            if ($orderLog->status === 'CANCELLED_REVERSED') {
+                return [
+                    'order_sn' => $orderSn,
+                    'status' => 'DILEWATI',
+                    'keterangan' => 'Pembatalan sudah pernah diproses.',
+                ];
+            }
+
+            $penjualan = Penjualan::where('no_nota', 'SHP-' . $orderSn)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$penjualan) {
+                $orderLog->update([
+                    'status' => 'CANCELLED',
+                    'synced_at' => now(),
+                ]);
+
+                return [
+                    'order_sn' => $orderSn,
+                    'status' => 'DILEWATI',
+                    'keterangan' => 'Order tidak memiliki transaksi lokal.',
+                ];
+            }
+
+            $jumlahDikembalikan = 0;
+
+            foreach ($penjualan->detailPenjualan()->lockForUpdate()->get() as $detail) {
+                $varian = VarianBarang::whereKey($detail->varian_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $stokSebelum = (int) $varian->stok;
+                $qty = (int) $detail->qty;
+                $stokSesudah = $stokSebelum + $qty;
+
+                $varian->update(['stok' => $stokSesudah]);
+
+                StokLog::create([
+                    'varian_id' => $varian->id,
+                    'tipe_transaksi' => 'penyesuaian',
+                    'qty' => $qty,
+                    'stok_sebelum' => $stokSebelum,
+                    'stok_sesudah' => $stokSesudah,
+                    'referensi' => 'CANCEL-SHP-' . $orderSn,
+                ]);
+
+                $jumlahDikembalikan += $qty;
+            }
+
+            $orderLog->update([
+                'status' => 'CANCELLED_REVERSED',
+                'synced_at' => now(),
+            ]);
+
+            return [
+                'order_sn' => $orderSn,
+                'status' => 'BERHASIL',
+                'keterangan' => "Order dibatalkan; stok {$jumlahDikembalikan} unit dikembalikan.",
+            ];
+        });
     }
 
     public function syncLocalStockToShopee()
