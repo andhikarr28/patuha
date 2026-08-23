@@ -77,15 +77,6 @@ class DetailPembelianController extends Controller
             'subtotal' => $subtotal,
         ]);
 
-        $varian = VarianBarang::findOrFail(
-            $request->varian_id
-        );
-
-        $varian->increment(
-            'stok',
-            $request->qty
-        );
-
         $this->updateTotalPembelian(
             $request->pembelian_id
         );
@@ -135,15 +126,6 @@ class DetailPembelianController extends Controller
         $pembelianLama =
             $detail_pembelian->pembelian_id;
 
-        $varianLama = VarianBarang::findOrFail(
-            $detail_pembelian->varian_id
-        );
-
-        $varianLama->decrement(
-            'stok',
-            $detail_pembelian->qty
-        );
-
         $subtotal =
             ($request->qty * $request->harga_satuan)
             - ($request->diskon ?? 0);
@@ -156,15 +138,6 @@ class DetailPembelianController extends Controller
             'diskon' => $request->diskon ?? 0,
             'subtotal' => $subtotal,
         ]);
-
-        $varianBaru = VarianBarang::findOrFail(
-            $request->varian_id
-        );
-
-        $varianBaru->increment(
-            'stok',
-            $request->qty
-        );
 
         $this->updateTotalPembelian(
             $pembelianLama
@@ -190,15 +163,6 @@ class DetailPembelianController extends Controller
     public function destroy(
         DetailPembelian $detail_pembelian
     ) {
-        $varian = VarianBarang::findOrFail(
-            $detail_pembelian->varian_id
-        );
-
-        $varian->decrement(
-            'stok',
-            $detail_pembelian->qty
-        );
-
         $pembelianId =
             $detail_pembelian->pembelian_id;
 

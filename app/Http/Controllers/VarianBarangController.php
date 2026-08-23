@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\VarianBarang;
 use App\Models\Barang;
+use App\Models\DetailPerencanaanPembelian;
+use App\Models\MarketplaceMapping;
 use App\Services\SkuGeneratorService;
 use Illuminate\Http\Request;
 
@@ -198,6 +200,18 @@ class VarianBarangController extends Controller
      */
     public function destroy(VarianBarang $varian)
     {
+        if (
+            $varian->detailPenjualan()->exists()
+            || $varian->detailPembelian()->exists()
+            || DetailPerencanaanPembelian::where('varian_id', $varian->id)->exists()
+            || MarketplaceMapping::where('varian_id', $varian->id)->exists()
+        ) {
+            return back()->with(
+                'error',
+                'Varian tidak dapat dihapus karena sudah memiliki histori transaksi.'
+            );
+        }
+
         $varian->delete();
 
         return redirect()

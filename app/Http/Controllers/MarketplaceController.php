@@ -400,6 +400,8 @@ class MarketplaceController extends Controller
 
     public function syncMarketplaceStockToLocal()
     {
+        return $this->reconcileMarketplaceStockToLocal();
+
         $models = MarketplaceItemModel::all();
 
         foreach ($models as $model) {
@@ -639,6 +641,8 @@ class MarketplaceController extends Controller
 
     public function syncOrdersToLocal()
     {
+        return $this->importShopeeOrdersAtomically();
+
         $orderSnList = $this->getShopeeOrderList();
 
         $data = $this->getShopeeOrderDetails(
@@ -907,6 +911,276 @@ class MarketplaceController extends Controller
             'success',
             'Sinkronisasi pesanan berhasil.'
         );
+    }
+
+    protected function reconcileMarketplaceStockToLocal()
+    {
+        $hasil = [];
+
+        try {
+            DB::transaction(function () use (&$hasil) {
+                $models = MarketplaceItemModel::all();
+
+                foreach ($models as $model) {
+                    $mapping = MarketplaceMapping::where(
+                        'marketplace_item_model_id',
+                        $model->id
+                    )->first();
+
+                    if (!$mapping) {
+                        $hasil[] = [
+                            'status' => 'dilewati',
+                            'varian' => $model->model_sku ?? ('Model #' . $model->model_id),
+                            'stok_lokal_sebelum' => null,
+                            'stok_shopee' => (int) $model->stok,
+                            'stok_lokal_sesudah' => null,
+                            'keterangan' => 'Mapping tidak tersedia.',
+                        ];
+                        continue;
+                    }
+
+                    $varian = VarianBarang::whereKey($mapping->varian_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$varian) {
+                        $hasil[] = [
+                            'status' => 'dilewati',
+                            'varian' => $model->model_sku ?? ('Model #' . $model->model_id),
+                            'stok_lokal_sebelum' => null,
+                            'stok_shopee' => (int) $model->stok,
+                            'stok_lokal_sesudah' => null,
+                            'keterangan' => 'Varian lokal tidak ditemukan.',
+                        ];
+                        continue;
+                    }
+
+                    $stokShopee = (int) $model->stok;
+                    $stokSebelum = (int) $varian->stok;
+
+                    if ($stokShopee < 0) {
+                        $hasil[] = [
+                            'status' => 'dilewati',
+                            'varian' => $varian->sku ?? ('Varian #' . $varian->id),
+                            'stok_lokal_sebelum' => $stokSebelum,
+                            'stok_shopee' => $stokShopee,
+                            'stok_lokal_sesudah' => $stokSebelum,
+                            'keterangan' => 'Stok Shopee tidak valid.',
+                        ];
+                        continue;
+                    }
+
+                    if ($stokSebelum !== $stokShopee) {
+                        $varian->update(['stok' => $stokShopee]);
+
+                        StokLog::create([
+                            'varian_id' => $varian->id,
+                            'tipe_transaksi' => 'rekonsiliasi_shopee',
+                            'qty' => abs($stokShopee - $stokSebelum),
+                            'stok_sebelum' => $stokSebelum,
+                            'stok_sesudah' => $stokShopee,
+                            'referensi' => 'Shopee model ' . $model->model_id,
+                        ]);
+
+                        $keterangan = 'Stok lokal diperbarui dari rekonsiliasi manual.';
+                        $status = 'diperbarui';
+                    } else {
+                        $keterangan = 'Stok sudah sama.';
+                        $status = 'sama';
+                    }
+
+                    $hasil[] = [
+                        'status' => $status,
+                        'varian' => $varian->sku ?? ('Varian #' . $varian->id),
+                        'stok_lokal_sebelum' => $stokSebelum,
+                        'stok_shopee' => $stokShopee,
+                        'stok_lokal_sesudah' => $stokShopee,
+                        'keterangan' => $keterangan,
+                    ];
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::error('Rekonsiliasi stok Shopee ke lokal gagal', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Rekonsiliasi stok gagal. Periksa log aplikasi.');
+        }
+
+        $jumlahDiubah = collect($hasil)->where('status', 'diperbarui')->count();
+
+        return back()
+            ->with('success', "Rekonsiliasi selesai. {$jumlahDiubah} varian diperbarui.")
+            ->with('sync_stock_results', $hasil);
+    }
+
+    protected function importShopeeOrdersAtomically()
+    {
+        try {
+            $orderSnList = $this->getShopeeOrderList();
+            $data = $this->getShopeeOrderDetails($orderSnList);
+        } catch (\Throwable $e) {
+            Log::error('Pengambilan order Shopee gagal', ['message' => $e->getMessage()]);
+
+            return back()->with('error', 'Order Shopee tidak dapat diambil. Periksa koneksi dan token Shopee.');
+        }
+
+        $hasil = [];
+
+        foreach ($data['response']['order_list'] ?? [] as $order) {
+            $orderSn = $order['order_sn'] ?? null;
+
+            if (!$orderSn) {
+                Log::warning('Order Shopee dilewati karena order_sn tidak tersedia.');
+                continue;
+            }
+
+            if (in_array($order['order_status'] ?? null, ['CANCELLED', 'IN_CANCEL'], true)) {
+                MarketplaceOrderLog::firstOrCreate(
+                    ['order_sn' => $orderSn],
+                    ['status' => 'CANCELLED', 'synced_at' => now()]
+                );
+                $hasil[] = ['order_sn' => $orderSn, 'status' => 'DILEWATI', 'keterangan' => 'Order dibatalkan.'];
+                continue;
+            }
+
+            if (MarketplaceOrderLog::where('order_sn', $orderSn)->exists()) {
+                $hasil[] = ['order_sn' => $orderSn, 'status' => 'SUDAH PERNAH SYNC'];
+                continue;
+            }
+
+            try {
+                $ringkasan = DB::transaction(function () use ($order, $orderSn) {
+                    if (MarketplaceOrderLog::where('order_sn', $orderSn)->lockForUpdate()->exists()) {
+                        throw new \RuntimeException('Order sudah pernah disinkronkan.');
+                    }
+
+                    $itemsValid = [];
+                    $variansTerkunci = [];
+                    $qtyPerVarian = [];
+
+                    foreach ($order['item_list'] ?? [] as $item) {
+                        $modelId = $item['model_id'] ?? null;
+                        $qty = (int) ($item['model_quantity_purchased'] ?? 0);
+
+                        if (!$modelId || $qty < 1) {
+                            throw new \RuntimeException('Item order Shopee memiliki model atau qty yang tidak valid.');
+                        }
+
+                        $itemModel = MarketplaceItemModel::where('model_id', $modelId)->first();
+                        if (!$itemModel) {
+                            throw new \RuntimeException("Model Shopee {$modelId} tidak ditemukan.");
+                        }
+
+                        $mapping = MarketplaceMapping::where(
+                            'marketplace_item_model_id',
+                            $itemModel->id
+                        )->first();
+                        if (!$mapping) {
+                            throw new \RuntimeException("Model Shopee {$modelId} belum memiliki mapping.");
+                        }
+
+                        if (!isset($variansTerkunci[$mapping->varian_id])) {
+                            $variansTerkunci[$mapping->varian_id] = VarianBarang::with('barang')
+                                ->whereKey($mapping->varian_id)
+                                ->lockForUpdate()
+                                ->first();
+                        }
+
+                        $varian = $variansTerkunci[$mapping->varian_id];
+                        if (!$varian) {
+                            throw new \RuntimeException("Varian lokal untuk model Shopee {$modelId} tidak ditemukan.");
+                        }
+
+                        $qtyPerVarian[$varian->id] = ($qtyPerVarian[$varian->id] ?? 0) + $qty;
+
+                        if ((int) $varian->stok < $qtyPerVarian[$varian->id]) {
+                            throw new \RuntimeException("Stok {$varian->sku} tidak mencukupi untuk order {$orderSn}.");
+                        }
+
+                        $itemsValid[] = [
+                            'varian' => $varian,
+                            'qty' => $qty,
+                            'harga' => (float) ($item['model_discounted_price'] ?? 0),
+                        ];
+                    }
+
+                    if (empty($itemsValid)) {
+                        throw new \RuntimeException('Order Shopee tidak memiliki item yang dapat diproses.');
+                    }
+
+                    $penjualan = Penjualan::create([
+                        'no_nota' => 'SHP-' . $orderSn,
+                        'tanggal_penjualan' => now(),
+                        'channel' => 'shopee',
+                        'total' => 0,
+                        'user_id' => auth()->id(),
+                        'metode_pembayaran' => $order['payment_method'] ?? 'Shopee',
+                    ]);
+
+                    $totalPenjualan = 0;
+
+                    foreach ($itemsValid as $item) {
+                        $varian = $item['varian'];
+                        $qty = $item['qty'];
+                        $harga = $item['harga'];
+                        $subtotal = $qty * $harga;
+                        $stokSebelum = (int) $varian->stok;
+                        $stokSesudah = $stokSebelum - $qty;
+
+                        DetailPenjualan::create([
+                            'penjualan_id' => $penjualan->id,
+                            'varian_id' => $varian->id,
+                            'qty' => $qty,
+                            'harga' => $harga,
+                            'subtotal' => $subtotal,
+                        ]);
+
+                        $varian->decrement('stok', $qty);
+                        $varian->stok = $stokSesudah;
+
+                        StokLog::create([
+                            'varian_id' => $varian->id,
+                            'tipe_transaksi' => 'penjualan',
+                            'qty' => $qty,
+                            'stok_sebelum' => $stokSebelum,
+                            'stok_sesudah' => $stokSesudah,
+                            'referensi' => 'SHP-' . $orderSn,
+                        ]);
+
+                        $totalPenjualan += $subtotal;
+                    }
+
+                    $penjualan->update(['total' => $totalPenjualan]);
+                    MarketplaceOrderLog::create([
+                        'order_sn' => $orderSn,
+                        'status' => $order['order_status'] ?? 'UNKNOWN',
+                        'synced_at' => now(),
+                    ]);
+
+                    return ['penjualan_id' => $penjualan->id, 'jumlah_item' => count($itemsValid)];
+                });
+
+                $hasil[] = [
+                    'order_sn' => $orderSn,
+                    'status' => 'BERHASIL',
+                    'keterangan' => "{$ringkasan['jumlah_item']} item tersimpan pada transaksi #{$ringkasan['penjualan_id']}.",
+                ];
+            } catch (\Throwable $e) {
+                Log::warning('Import order Shopee ditolak', [
+                    'order_sn' => $orderSn,
+                    'message' => $e->getMessage(),
+                ]);
+                $hasil[] = ['order_sn' => $orderSn, 'status' => 'GAGAL', 'keterangan' => $e->getMessage()];
+            }
+        }
+
+        $berhasil = collect($hasil)->where('status', 'BERHASIL')->count();
+        $gagal = collect($hasil)->where('status', 'GAGAL')->count();
+
+        return back()
+            ->with($gagal > 0 ? 'error' : 'success', "Sinkronisasi order selesai: {$berhasil} berhasil, {$gagal} gagal.")
+            ->with('sync_order_results', $hasil);
     }
 
     public function syncLocalStockToShopee()

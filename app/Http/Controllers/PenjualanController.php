@@ -165,6 +165,13 @@ class PenjualanController extends Controller
     public function destroy(
         Penjualan $penjualan
     ) {
+        if ($penjualan->detailPenjualan()->exists()) {
+            return back()->with(
+                'error',
+                'Transaksi penjualan yang sudah tercatat tidak dapat dihapus karena telah memengaruhi stok.'
+            );
+        }
+
         $penjualan->delete();
 
         return redirect()

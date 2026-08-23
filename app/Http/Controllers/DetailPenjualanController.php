@@ -144,6 +144,16 @@ class DetailPenjualanController extends Controller
         Request $request,
         DetailPenjualan $detail_penjualan
     ) {
+        return redirect()
+            ->route(
+                'detail-penjualan.index',
+                ['penjualan_id' => $detail_penjualan->penjualan_id]
+            )
+            ->with(
+                'error',
+                'Detail transaksi penjualan yang sudah selesai tidak dapat diubah.'
+            );
+
         $request->validate([
             'penjualan_id' => 'required',
             'varian_id' => 'required',

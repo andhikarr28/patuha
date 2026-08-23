@@ -9,6 +9,48 @@
         <p class="text-gray-500 text-sm">Kelola integrasi produk, stok, dan pesanan antara sistem dengan Shopee.</p>
     </div>
 
+    @if(session('success'))
+        <div class="border border-green-300 bg-green-50 text-green-700 rounded p-3 text-sm">{{ session('success') }}</div>
+    @endif
+
+    @if(session('error'))
+        <div class="border border-red-300 bg-red-50 text-red-700 rounded p-3 text-sm">{{ session('error') }}</div>
+    @endif
+
+    @if(session('sync_stock_results'))
+        <div class="border rounded">
+            <div class="px-4 py-3 border-b">
+                <h2 class="font-bold">Hasil Rekonsiliasi Stok Shopee</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-left text-gray-500 border-b"><th class="px-4 py-2">Varian</th><th class="px-4 py-2 text-right">Lokal Sebelum</th><th class="px-4 py-2 text-right">Shopee</th><th class="px-4 py-2 text-right">Lokal Sesudah</th><th class="px-4 py-2">Keterangan</th></tr></thead>
+                    <tbody>
+                        @foreach(session('sync_stock_results') as $hasil)
+                            <tr class="border-b"><td class="px-4 py-2">{{ $hasil['varian'] }}</td><td class="px-4 py-2 text-right">{{ $hasil['stok_lokal_sebelum'] ?? '-' }}</td><td class="px-4 py-2 text-right">{{ $hasil['stok_shopee'] ?? '-' }}</td><td class="px-4 py-2 text-right">{{ $hasil['stok_lokal_sesudah'] ?? '-' }}</td><td class="px-4 py-2">{{ $hasil['keterangan'] }}</td></tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    @if(session('sync_order_results'))
+        <div class="border rounded">
+            <div class="px-4 py-3 border-b"><h2 class="font-bold">Hasil Import Order Shopee</h2></div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-left text-gray-500 border-b"><th class="px-4 py-2">Order</th><th class="px-4 py-2">Status</th><th class="px-4 py-2">Keterangan</th></tr></thead>
+                    <tbody>
+                        @foreach(session('sync_order_results') as $hasil)
+                            <tr class="border-b"><td class="px-4 py-2">{{ $hasil['order_sn'] ?? '-' }}</td><td class="px-4 py-2 font-semibold {{ ($hasil['status'] ?? '') === 'GAGAL' ? 'text-red-600' : 'text-green-700' }}">{{ $hasil['status'] ?? '-' }}</td><td class="px-4 py-2">{{ $hasil['keterangan'] ?? '-' }}</td></tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     {{-- STATUS KONEKSI --}}
     <div class="border rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>

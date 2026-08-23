@@ -62,7 +62,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:kasir,admin')->group(function () {
 
         Route::resource('penjualan', PenjualanController::class);
-        Route::resource('detail-penjualan', DetailPenjualanController::class);
+        Route::resource('detail-penjualan', DetailPenjualanController::class)->only(['index']);
         Route::get('/penjualan/{id}/struk', [PenjualanController::class, 'struk'])->name('penjualan.struk');
 
     });
@@ -216,8 +216,8 @@ Route::middleware('auth')->group(function () {
         |--------------------------------------------------------------------------
         */
 
-        Route::resource('pembelian', PembelianController::class);
-        Route::resource('detail-pembelian', DetailPembelianController::class);
+        Route::resource('pembelian', PembelianController::class)->only(['index']);
+        Route::resource('detail-pembelian', DetailPembelianController::class)->only(['index']);
         Route::get('/pembelian/{id}/struk', [PembelianController::class, 'struk'])->name('pembelian.struk');
 
 

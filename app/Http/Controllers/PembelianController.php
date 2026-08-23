@@ -62,10 +62,6 @@ class PembelianController extends Controller
 
         foreach ($request->cart as $item) {
 
-            $varian = \App\Models\VarianBarang::findOrFail(
-                $item['varian_id']
-            );
-
             $subtotal =
                 ($item['qty'] * $item['harga_beli']);
 
@@ -76,15 +72,6 @@ class PembelianController extends Controller
                 'harga_satuan' => $item['harga_beli'],
                 'diskon' => $item['diskon'],
                 'subtotal' => $subtotal
-            ]);
-
-            $varian->increment(
-                'stok',
-                $item['qty']
-            );
-
-            $varian->update([
-                'harga_beli' => $item['harga_beli']
             ]);
 
             $totalBrutto += $subtotal;
@@ -141,6 +128,16 @@ class PembelianController extends Controller
 
     public function destroy(Pembelian $pembelian)
     {
+        if (
+            $pembelian->detailPembelian()->exists()
+            || $pembelian->perencanaan_pembelian_id
+        ) {
+            return back()->with(
+                'error',
+                'Pembelian yang sudah tercatat tidak dapat dihapus karena telah memengaruhi stok.'
+            );
+        }
+
         $pembelian->delete();
 
         return redirect()
