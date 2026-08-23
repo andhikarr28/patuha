@@ -291,17 +291,13 @@ class MarketplaceController extends Controller
 
     public function showMappings()
     {
-        $models = MarketplaceItemModel::all();
+        $models = MarketplaceItemModel::with('mapping')->get();
 
-        $varians = VarianBarang::all();
+        $varians = VarianBarang::with('barang')
+            ->orderBy('sku')
+            ->get();
 
-        return view(
-            'marketplace.mapping',
-            compact(
-                'models',
-                'varians'
-            )
-        );
+        return view('marketplace.mapping', compact('models', 'varians'));
     }
 
     public function syncVariantsFromShopee()

@@ -22,4 +22,12 @@ class MarketplaceItemModel extends Model
             'marketplace_item_id'
         );
     }
+
+    public function mapping()
+    {
+        return $this->hasOne(
+            MarketplaceMapping::class,
+            'marketplace_item_model_id'
+        );
+    }
 }
