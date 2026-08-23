@@ -28,6 +28,11 @@
     </div>
 
     {{-- SUMMARY --}}
+    @php
+        $mappedCount = $models->filter(fn ($model) => $model->mapping)->count();
+        $unmappedCount = $models->count() - $mappedCount;
+        $mappingPercentage = $models->count() ? round(($mappedCount / $models->count()) * 100) : 0;
+    @endphp
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div class="border rounded-lg p-4 bg-white">
             <p class="text-sm text-gray-500">Total Varian Shopee</p>
@@ -37,21 +42,18 @@
         </div>
 
         <div class="border rounded-lg p-4 bg-white">
-            <p class="text-sm text-gray-500">Varian Lokal Tersedia</p>
+            <p class="text-sm text-gray-500">Belum Mapping</p>
             <p class="text-2xl font-bold mt-1">
-                {{ $varians->count() }}
+                {{ $unmappedCount }}
             </p>
         </div>
 
         <div class="border rounded-lg p-4 bg-white">
-            @php
-                $mappedCount = $models->filter(fn ($model) => $model->mapping)->count();
-            @endphp
-
             <p class="text-sm text-gray-500">Sudah Mapping</p>
             <p class="text-2xl font-bold text-green-600 mt-1">
                 {{ $mappedCount }} / {{ $models->count() }}
             </p>
+            <p class="text-xs text-gray-500 mt-1">{{ $mappingPercentage }}% selesai</p>
         </div>
     </div>
 
@@ -69,6 +71,13 @@
             @php
                 $currentMapping = $model->mapping;
                 $selectedVarianId = $currentMapping?->varian_id;
+                $status = $model->mapping_status;
+                $statusClass = match ($status) {
+                    'SUDAH MAPPING' => 'text-green-600 bg-green-50 border-green-200',
+                    'SKU TIDAK DITEMUKAN', 'SKU AMBIGU' => 'text-amber-700 bg-amber-50 border-amber-200',
+                    'SKU KOSONG' => 'text-slate-600 bg-slate-50 border-slate-200',
+                    default => 'text-gray-500 bg-gray-50 border-gray-200',
+                };
             @endphp
 
             <form
@@ -111,6 +120,12 @@
                         <p class="font-semibold text-base">
                             {{ $model->model_sku ?: 'Tanpa SKU' }}
                         </p>
+
+                        @if(!$currentMapping && $status !== 'BELUM MAPPING')
+                            <span class="inline-flex mt-2 text-xs font-semibold border rounded-full px-2 py-0.5 {{ $statusClass }}">
+                                {{ $status }}
+                            </span>
+                        @endif
                     </div>
 
                     {{-- VARIAN LOKAL --}}
@@ -159,6 +174,9 @@
                                     <span class="font-semibold">
                                         {{ $mappedVarian->sku ?: '-' }}
                                     </span>
+                                    &middot; {{ $mappedVarian->barang?->nama_barang ?? 'Barang' }}
+                                    &middot; {{ $mappedVarian->warna ?: '-' }}/{{ $mappedVarian->ukuran ?: '-' }}
+                                    &middot; Stok {{ $mappedVarian->stok }}
                                 </p>
                             @endif
                         @endif

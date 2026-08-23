@@ -17,6 +17,26 @@
         <div class="border border-red-300 bg-red-50 text-red-700 rounded p-3 text-sm">{{ session('error') }}</div>
     @endif
 
+    @if(session('sync_mapping_results'))
+        @php
+            $hasilMapping = session('sync_mapping_results');
+            $jumlahPeringatan = $hasilMapping['SKU TIDAK DITEMUKAN']
+                + $hasilMapping['SKU KOSONG']
+                + $hasilMapping['SKU AMBIGU'];
+        @endphp
+
+        @if($jumlahPeringatan > 0)
+            <div class="border border-amber-200 bg-amber-50 text-amber-800 rounded p-3 text-sm">
+                <p class="font-semibold">Sebagian SKU memerlukan mapping manual.</p>
+                <p class="mt-1">
+                    {{ $hasilMapping['SKU TIDAK DITEMUKAN'] }} SKU tidak ditemukan &middot;
+                    {{ $hasilMapping['SKU KOSONG'] }} SKU kosong &middot;
+                    {{ $hasilMapping['SKU AMBIGU'] }} SKU ambigu
+                </p>
+            </div>
+        @endif
+    @endif
+
     @if(session('sync_stock_results'))
         <div class="border rounded">
             <div class="px-4 py-3 border-b">

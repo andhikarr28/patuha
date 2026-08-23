@@ -291,11 +291,22 @@ class MarketplaceController extends Controller
 
     public function showMappings()
     {
-        $models = MarketplaceItemModel::with('mapping')->get();
+        $models = MarketplaceItemModel::with('mapping.varian.barang')
+            ->orderBy('model_id')
+            ->get();
 
         $varians = VarianBarang::with('barang')
             ->orderBy('sku')
             ->get();
+
+        $jumlahSkuLokal = $varians
+            ->filter(fn ($varian) => trim((string) $varian->sku) !== '')
+            ->groupBy(fn ($varian) => $this->normaliseSku($varian->sku))
+            ->map->count();
+
+        foreach ($models as $model) {
+            $model->mapping_status = $this->mappingStatus($model, $jumlahSkuLokal);
+        }
 
         return view('marketplace.mapping', compact('models', 'varians'));
     }
@@ -310,6 +321,13 @@ class MarketplaceController extends Controller
         $partnerKey = config('services.shopee.partner_key');
 
         $jumlahVarian = 0;
+        $hasilMapping = [
+            'AUTO MAPPED' => 0,
+            'SUDAH MAPPING' => 0,
+            'SKU TIDAK DITEMUKAN' => 0,
+            'SKU KOSONG' => 0,
+            'SKU AMBIGU' => 0,
+        ];
 
         foreach ($items as $item) {
 
@@ -350,7 +368,7 @@ class MarketplaceController extends Controller
 
             foreach ($response['response']['model'] as $model) {
 
-                MarketplaceItemModel::updateOrCreate(
+                $itemModel = MarketplaceItemModel::updateOrCreate(
                     [
                         'model_id' => $model['model_id']
                     ],
@@ -363,27 +381,37 @@ class MarketplaceController extends Controller
                             ?? 0,
                     ]
                 );
+                $statusMapping = $this->autoMapMarketplaceModelBySku($itemModel);
+                $hasilMapping[$statusMapping]++;
                 $jumlahVarian++;
             }
         }
 
-        return back()->with(
-            'success',
-            $jumlahVarian .
-            ' variasi Shopee berhasil disinkronkan.'
-        );
+        return back()
+            ->with(
+                'success',
+                $jumlahVarian . ' varian berhasil disinkronkan • ' .
+                $hasilMapping['AUTO MAPPED'] . ' auto-mapping baru • ' .
+                $hasilMapping['SUDAH MAPPING'] . ' sudah ter-mapping.'
+            )
+            ->with('sync_mapping_results', $hasilMapping);
     }
 
     public function storeMapping(Request $request)
     {
+        $validated = $request->validate([
+            'marketplace_item_model_id' => 'required|integer|exists:marketplace_item_models,id',
+            'varian_id' => 'required|integer|exists:varian_barang,id',
+        ]);
+
         MarketplaceMapping::updateOrCreate(
             [
                 'marketplace_item_model_id' =>
-                    $request->marketplace_item_model_id
+                    $validated['marketplace_item_model_id']
             ],
             [
                 'varian_id' =>
-                    $request->varian_id
+                    $validated['varian_id']
             ]
         );
 
@@ -392,6 +420,67 @@ class MarketplaceController extends Controller
                 'success',
                 'Mapping berhasil disimpan'
             );
+    }
+
+    protected function autoMapMarketplaceModelBySku(MarketplaceItemModel $itemModel): string
+    {
+        if (MarketplaceMapping::where('marketplace_item_model_id', $itemModel->id)->exists()) {
+            return 'SUDAH MAPPING';
+        }
+
+        $sku = trim((string) $itemModel->model_sku);
+
+        if ($sku === '') {
+            return 'SKU KOSONG';
+        }
+
+        $varians = VarianBarang::whereRaw(
+            'UPPER(TRIM(sku)) = ?',
+            [$this->normaliseSku($sku)]
+        )->get();
+
+        if ($varians->isEmpty()) {
+            return 'SKU TIDAK DITEMUKAN';
+        }
+
+        if ($varians->count() > 1) {
+            return 'SKU AMBIGU';
+        }
+
+        $mapping = MarketplaceMapping::firstOrCreate(
+            ['marketplace_item_model_id' => $itemModel->id],
+            ['varian_id' => $varians->first()->id]
+        );
+
+        return $mapping->wasRecentlyCreated
+            ? 'AUTO MAPPED'
+            : 'SUDAH MAPPING';
+    }
+
+    protected function mappingStatus(MarketplaceItemModel $model, $jumlahSkuLokal): string
+    {
+        if ($model->mapping) {
+            return 'SUDAH MAPPING';
+        }
+
+        $sku = trim((string) $model->model_sku);
+
+        if ($sku === '') {
+            return 'SKU KOSONG';
+        }
+
+        $jumlahCocok = $jumlahSkuLokal[$this->normaliseSku($sku)] ?? 0;
+
+        if ($jumlahCocok === 0) {
+            return 'SKU TIDAK DITEMUKAN';
+        }
+
+        return $jumlahCocok > 1 ? 'SKU AMBIGU' : 'BELUM MAPPING';
+    }
+
+    protected function normaliseSku(?string $sku): string
+    {
+        return strtoupper(trim((string) $sku));
     }
 
     public function syncMarketplaceStockToLocal()
