@@ -57,7 +57,67 @@ class ShopeeService
             );
         }
 
+        $expiredAt = $token->expired_at
+            ? \Carbon\Carbon::parse($token->expired_at)
+            : null;
+
+        if (!$expiredAt || $expiredAt->lte(now()->addMinutes(5))) {
+            $token = $this->refreshAccessToken($token);
+        }
+
         return $token;
+    }
+
+    private function refreshAccessToken(MarketplaceToken $token): MarketplaceToken
+    {
+        if (empty($token->refresh_token)) {
+            throw new RuntimeException(
+                'Refresh token Shopee tidak tersedia. Hubungkan ulang akun Shopee.'
+            );
+        }
+
+        $path = '/api/v2/auth/access_token/get';
+        $timestamp = time();
+        $sign = $this->generateAuthSign($path, $timestamp);
+
+        $response = Http::timeout(30)
+            ->retry(2, 200)
+            ->post(
+                $this->baseUrl . $path . '?' . http_build_query([
+                    'partner_id' => (int) $this->partnerId,
+                    'timestamp' => $timestamp,
+                    'sign' => $sign,
+                ]),
+                [
+                    'partner_id' => (int) $this->partnerId,
+                    'shop_id' => (int) $token->shop_id,
+                    'refresh_token' => $token->refresh_token,
+                ]
+            );
+
+        $data = $response->json();
+
+        if ($response->failed() || !empty($data['error'])) {
+            throw new RuntimeException(
+                'Access token Shopee tidak dapat diperbarui. Hubungkan ulang akun Shopee.'
+            );
+        }
+
+        $expiresIn = (int) ($data['expire_in'] ?? 0);
+
+        if (empty($data['access_token']) || $expiresIn <= 0) {
+            throw new RuntimeException(
+                'Respons refresh token Shopee tidak lengkap. Hubungkan ulang akun Shopee.'
+            );
+        }
+
+        $token->update([
+            'access_token' => $data['access_token'],
+            'refresh_token' => $data['refresh_token'] ?? $token->refresh_token,
+            'expired_at' => now()->addSeconds($expiresIn),
+        ]);
+
+        return $token->fresh();
     }
 
     /*

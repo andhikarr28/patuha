@@ -162,12 +162,11 @@ class PenerimaanPembelianController extends Controller
             );
         }
 
-        // dikumpulin di luar closure supaya bisa diakses setelah transaksi commit
-        $varianBerubah = [];
+        $marketplace = app(MarketplaceController::class);
 
         try {
 
-            DB::transaction(function () use ($request, $perencanaanPembelian, &$varianBerubah) {
+            DB::transaction(function () use ($request, $perencanaanPembelian, $marketplace) {
 
                 $perencanaan =
                     PerencanaanPembelian::where(
@@ -351,6 +350,10 @@ class PenerimaanPembelianController extends Controller
                         +
                         $qtyMasuk;
 
+                    $hargaJual = round(
+                        $hargaSatuan + ($hargaSatuan * ((float) $varian->margin_persen) / 100)
+                    );
+
                     $varian->update([
 
                         'stok' =>
@@ -359,7 +362,14 @@ class PenerimaanPembelianController extends Controller
                         'harga_beli' =>
                             $hargaSatuan,
 
+                        'harga_jual' =>
+                            $hargaJual,
+
                     ]);
+
+                    // Untuk varian yang termapping, stok Shopee wajib berhasil
+                    // diperbarui sebelum penerimaan lokal di-commit.
+                    $marketplace->syncSingleStockToShopee($varian);
 
                     StokLog::create([
 
@@ -394,9 +404,6 @@ class PenerimaanPembelianController extends Controller
                     $totalDiskon +=
                         $diskon;
 
-                    // catat varian yang stoknya berubah, refresh biar stok-nya update
-                    $varian->refresh();
-                    $varianBerubah[$varian->id] = $varian;
                 }
 
                 $pembelian->update([
@@ -451,24 +458,6 @@ class PenerimaanPembelianController extends Controller
                     'Penerimaan gagal diproses: '
                     . $e->getMessage()
                 );
-        }
-
-        // Sync ke Shopee dilakukan SETELAH transaksi lokal commit sukses,
-        // di luar DB::transaction supaya lock DB gak nyangkut nungguin request HTTP.
-        $marketplace = app(MarketplaceController::class);
-
-        foreach ($varianBerubah as $varian) {
-            try {
-                $marketplace->syncSingleStockToShopee($varian);
-            } catch (\Throwable $e) {
-                Log::error(
-                    'Realtime Sync Shopee Gagal (Penerimaan)',
-                    [
-                        'varian_id' => $varian->id,
-                        'message' => $e->getMessage()
-                    ]
-                );
-            }
         }
 
         return redirect()

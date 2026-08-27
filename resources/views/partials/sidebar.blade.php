@@ -63,7 +63,7 @@
         </div>
 
         {{-- PENJUALAN --}}
-        @if(auth()->user()->hasRole(['kasir', 'admin']))
+        @if(auth()->user()->hasRole(['kasir']))
             <div>
                 <p class="nav-group-label">Penjualan</p>
                 <a href="{{ route('penjualan.index') }}"

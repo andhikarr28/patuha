@@ -9,14 +9,6 @@
         <p class="text-gray-500 text-sm">Kelola integrasi produk, stok, dan pesanan antara sistem dengan Shopee.</p>
     </div>
 
-    @if(session('success'))
-        <div class="border border-green-300 bg-green-50 text-green-700 rounded p-3 text-sm">{{ session('success') }}</div>
-    @endif
-
-    @if(session('error'))
-        <div class="border border-red-300 bg-red-50 text-red-700 rounded p-3 text-sm">{{ session('error') }}</div>
-    @endif
-
     @if(session('sync_mapping_results'))
         @php
             $hasilMapping = session('sync_mapping_results');
@@ -56,17 +48,18 @@
     {{-- STATUS KONEKSI --}}
     <div class="border rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-            <p class="text-sm text-gray-500">Status Shopee</p>
-            @if($marketplace?->status)
-                <p class="font-bold text-green-600 mt-1">● Terhubung</p>
-                <p class="text-sm text-gray-500 mt-1">
-                    Terakhir sinkron:
-                    {{ $marketplace->last_sync ? \Carbon\Carbon::parse($marketplace->last_sync)->format('d M Y H:i') : 'Belum pernah' }}
+            <p class="text-sm text-gray-500">Status Access Token Shopee</p>
+            <div class="mt-1 text-sm {{ $tokenStatus['status'] === 'aktif' ? 'text-green-700' : 'text-red-700' }}">
+                <p class="font-semibold">{{ $tokenStatus['label'] }}</p>
+                <p class="text-xs mt-1 {{ $tokenStatus['status'] === 'aktif' ? 'text-gray-500' : 'text-red-600' }}">
+                    {{ $tokenStatus['detail'] }}
                 </p>
-            @else
-                <p class="font-bold text-red-600 mt-1">● Tidak Terhubung</p>
-                <p class="text-sm text-gray-500 mt-1">Hubungkan akun Shopee untuk menggunakan fitur sinkronisasi.</p>
-            @endif
+            </div>
+
+            <p class="text-sm text-gray-500 mt-3">
+                Terakhir sinkron:
+                {{ $marketplace?->last_sync ? \Carbon\Carbon::parse($marketplace->last_sync)->format('d M Y H:i') : 'Belum pernah' }}
+            </p>
         </div>
 
         @if($marketplace?->status)

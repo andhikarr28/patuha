@@ -45,9 +45,9 @@ class PenjualanController extends Controller
             'cart.*.qty' => 'required|integer|min:1',
         ]);
 
-        DB::beginTransaction();
+        $marketplace = app(MarketplaceController::class);
 
-        $varianBerubah = [];
+        DB::beginTransaction();
 
         try {
             $penjualan = Penjualan::create([
@@ -88,7 +88,10 @@ class PenjualanController extends Controller
 
                 $varian->decrement('stok', $item['qty']);
                 $varian->refresh();
-                $varianBerubah[$varian->id] = $varian;
+
+                // Untuk varian yang termapping, stok Shopee wajib berhasil
+                // diperbarui sebelum transaksi lokal di-commit.
+                $marketplace->syncSingleStockToShopee($varian);
 
                 $grandTotal += $subtotal;
             }
@@ -99,23 +102,17 @@ class PenjualanController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            throw $e;
-        }
 
-        // Sync ke Shopee dilakukan SETELAH commit sukses, di luar transaksi DB.
-        // Kalau ditaruh di dalam transaction, request HTTP ke Shopee bisa bikin
-        // koneksi/lock DB nyangkut lama, dan external call tetap gak bisa di-rollback.
-        $marketplace = app(MarketplaceController::class);
+            Log::warning('Penjualan dibatalkan karena sync Shopee gagal', [
+                'message' => $e->getMessage(),
+            ]);
 
-        foreach ($varianBerubah as $varian) {
-            try {
-                $marketplace->syncSingleStockToShopee($varian);
-            } catch (\Throwable $e) {
-                Log::error('Realtime Sync Shopee Gagal', [
-                    'varian_id' => $varian->id,
-                    'message' => $e->getMessage()
-                ]);
-            }
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Transaksi tidak disimpan karena stok marketplace tidak dapat disinkronkan. Periksa koneksi atau authorization Shopee.'
+                );
         }
 
         return redirect()

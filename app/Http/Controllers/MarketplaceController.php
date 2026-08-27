@@ -18,6 +18,7 @@ use App\Models\MarketplaceOrderLog;
 use App\Models\Penjualan;
 use App\Models\DetailPenjualan;
 use App\Models\StokLog;
+use App\Services\ShopeeService;
 
 class MarketplaceController extends Controller
 {
@@ -39,6 +40,33 @@ class MarketplaceController extends Controller
         $marketplace =
             Marketplace::first();
 
+        $token = MarketplaceToken::first();
+        $tokenStatus = [
+            'status' => 'tidak_tersedia',
+            'label' => 'Token tidak tersedia',
+            'detail' => 'Hubungkan akun Shopee untuk membuat access token.',
+        ];
+
+        if ($token) {
+            $expiredAt = $token->expired_at
+                ? \Carbon\Carbon::parse($token->expired_at)
+                : null;
+
+            $tokenStatus = $expiredAt && $expiredAt->lte(now())
+                ? [
+                    'status' => 'kedaluwarsa',
+                    'label' => 'Access token kedaluwarsa',
+                    'detail' => 'Sistem akan mencoba refresh otomatis saat proses Shopee dijalankan. Jika refresh gagal, hubungkan ulang akun Shopee.',
+                ]
+                : [
+                    'status' => 'aktif',
+                    'label' => 'Access token tersedia',
+                    'detail' => $expiredAt
+                        ? 'Berlaku sampai ' . $expiredAt->format('d M Y H:i') . ' WIB. Terakhir diperbarui ' . $token->updated_at->format('d M Y H:i') . ' WIB.'
+                        : 'Masa berlaku belum tercatat; token akan diperiksa saat proses Shopee dijalankan.',
+                ];
+        }
+
         return view(
             'marketplace.index',
             compact(
@@ -46,7 +74,8 @@ class MarketplaceController extends Controller
                 'jumlahVarian',
                 'jumlahMapping',
                 'lastSync',
-                'marketplace'
+                'marketplace',
+                'tokenStatus'
             )
         );
     }
@@ -92,7 +121,7 @@ class MarketplaceController extends Controller
             $partnerKey
         );
 
-        $response = Http::post(
+        $response = Http::timeout(30)->post(
             "https://openplatform.sandbox.test-stable.shopee.sg/api/v2/auth/token/get?partner_id={$partnerId}&timestamp={$timestamp}&sign={$sign}",
             [
                 'code' => $request->code,
@@ -101,20 +130,39 @@ class MarketplaceController extends Controller
             ]
         );
 
+        $body = $response->json();
+
+        if (
+            $response->failed() ||
+            !empty($body['error']) ||
+            empty($body['access_token']) ||
+            empty($body['refresh_token']) ||
+            empty($body['expire_in'])
+        ) {
+            Log::warning('Authorization Shopee gagal', [
+                'status' => $response->status(),
+                'response' => $body,
+            ]);
+
+            return redirect()
+                ->route('marketplace.index')
+                ->with('error', 'Authorization Shopee gagal. Silakan hubungkan ulang akun Shopee.');
+        }
+
         MarketplaceToken::updateOrCreate(
             [
                 'shop_id' => $request->shop_id
             ],
             [
                 'access_token' =>
-                    $response['access_token'],
+                    $body['access_token'],
 
                 'refresh_token' =>
-                    $response['refresh_token'],
+                    $body['refresh_token'],
 
                 'expired_at' =>
                     now()->addSeconds(
-                        $response['expire_in']
+                        $body['expire_in']
                     ),
             ]
         );
@@ -129,7 +177,7 @@ class MarketplaceController extends Controller
 
     public function getShopInfo()
     {
-        $token = MarketplaceToken::first();
+        $token = $this->getValidShopeeToken();
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
@@ -169,7 +217,7 @@ class MarketplaceController extends Controller
 
     public function syncProductsFromShopee()
     {
-        $token = MarketplaceToken::first();
+        $token = $this->getValidShopeeToken();
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
@@ -214,7 +262,7 @@ class MarketplaceController extends Controller
 
     public function getProductInfo()
     {
-        $token = MarketplaceToken::first();
+        $token = $this->getValidShopeeToken();
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
@@ -313,7 +361,11 @@ class MarketplaceController extends Controller
 
     public function syncVariantsFromShopee()
     {
-        $token = MarketplaceToken::first();
+        try {
+            $token = $this->getValidShopeeToken();
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         $items = MarketplaceItem::all();
 
@@ -483,34 +535,94 @@ class MarketplaceController extends Controller
         return strtoupper(trim((string) $sku));
     }
 
+    protected function getValidShopeeToken(): MarketplaceToken
+    {
+        return app(ShopeeService::class)->getToken();
+    }
+
     public function syncMarketplaceStockToLocal()
     {
-        foreach (MarketplaceItemModel::all() as $itemModel) {
+        try {
+            $token = $this->getValidShopeeToken();
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-            $mapping = MarketplaceMapping::where(
-                'marketplace_item_model_id',
-                $itemModel->id
-            )->first();
+        $partnerId = config('services.shopee.partner_id');
+        $partnerKey = config('services.shopee.partner_key');
+        $path = '/api/v2/product/get_model_list';
+        $jumlahDiperbarui = 0;
+        $jumlahGagal = 0;
 
-            if (!$mapping) {
+        $modelsPerItem = MarketplaceItemModel::with([
+            'marketplaceItem',
+            'mapping.varian',
+        ])->get()->groupBy('marketplace_item_id');
+
+        foreach ($modelsPerItem as $models) {
+            $item = $models->first()->marketplaceItem;
+
+            if (!$item) {
                 continue;
             }
 
-            if ($itemModel->stok === null || (int) $itemModel->stok < 0) {
+            $timestamp = time();
+            $baseString = $partnerId . $path . $timestamp . $token->access_token . (int) $token->shop_id;
+            $sign = hash_hmac('sha256', $baseString, $partnerKey);
+
+            $response = Http::timeout(10)
+                ->retry(2, 200)
+                ->get(
+                    "https://openplatform.sandbox.test-stable.shopee.sg{$path}",
+                    [
+                        'partner_id' => $partnerId,
+                        'timestamp' => $timestamp,
+                        'access_token' => $token->access_token,
+                        'shop_id' => (int) $token->shop_id,
+                        'item_id' => (int) $item->external_product_id,
+                        'sign' => $sign,
+                    ]
+                );
+
+            $body = $response->json();
+
+            if ($response->failed() || !empty($body['error']) || !isset($body['response']['model'])) {
+                $jumlahGagal++;
+
+                Log::warning('Sync stok Shopee ke lokal gagal', [
+                    'item_id' => $item->external_product_id,
+                    'status' => $response->status(),
+                    'response' => $body,
+                ]);
+
                 continue;
             }
 
-            $varian = VarianBarang::find(
-                $mapping->varian_id
-            );
+            $stokShopeePerModel = collect($body['response']['model'])
+                ->keyBy(fn ($model) => (string) $model['model_id']);
 
-            if (!$varian) {
-                continue;
+            foreach ($models as $itemModel) {
+                $mapping = $itemModel->mapping;
+                $modelShopee = $stokShopeePerModel->get((string) $itemModel->model_id);
+
+                if (!$mapping || !$mapping->varian || !$modelShopee) {
+                    continue;
+                }
+
+                $stokShopee = (int) data_get(
+                    $modelShopee,
+                    'stock_info_v2.summary_info.total_available_stock',
+                    -1
+                );
+
+                if ($stokShopee < 0) {
+                    continue;
+                }
+
+                $itemModel->update(['stok' => $stokShopee]);
+                $mapping->varian->update(['stok' => $stokShopee]);
+                $jumlahDiperbarui++;
             }
-
-            $varian->update([
-                'stok' => (int) $itemModel->stok,
-            ]);
         }
 
         $marketplace = Marketplace::first();
@@ -522,7 +634,7 @@ class MarketplaceController extends Controller
                 'aktivitas' => 'Sync Stok',
                 'arah_sync' => 'Shopee -> Lokal',
                 'jumlah_produk' => MarketplaceItem::count(),
-                'jumlah_varian' => MarketplaceItemModel::count(),
+                'jumlah_varian' => $jumlahDiperbarui,
                 'sync_at' => now(),
             ]);
 
@@ -531,18 +643,25 @@ class MarketplaceController extends Controller
             ]);
         }
 
+        if ($jumlahGagal > 0) {
+            return back()->with(
+                'error',
+                "Sinkronisasi Shopee ke Lokal selesai: {$jumlahDiperbarui} varian diperbarui, {$jumlahGagal} produk gagal diambil. Periksa token Shopee atau log aplikasi."
+            );
+        }
+
         return back()->with(
             'success',
-            'Sinkronisasi stok Shopee → Lokal berhasil.'
+            "Sinkronisasi Shopee ke Lokal berhasil. {$jumlahDiperbarui} varian diperbarui."
         );
     }
 
     public function syncProducts()
     {
-        $token = MarketplaceToken::first();
-
-        if (!$token) {
-            return back()->with('error', 'Token Shopee belum tersedia. Hubungkan akun Shopee terlebih dahulu.');
+        try {
+            $token = $this->getValidShopeeToken();
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         $partnerId = config('services.shopee.partner_id');
@@ -616,9 +735,14 @@ class MarketplaceController extends Controller
 
     private function saveItemDetail($itemId)
     {
-        $token = MarketplaceToken::first();
+        try {
+            $token = $this->getValidShopeeToken();
+        } catch (\RuntimeException $e) {
+            Log::warning('Detail produk Shopee gagal diambil', [
+                'item_id' => $itemId,
+                'message' => $e->getMessage(),
+            ]);
 
-        if (!$token) {
             return false;
         }
 
@@ -686,7 +810,7 @@ class MarketplaceController extends Controller
 
     public function getShopeeOrderList()
     {
-        $token = MarketplaceToken::first();
+        $token = $this->getValidShopeeToken();
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
@@ -734,7 +858,7 @@ class MarketplaceController extends Controller
 
     public function getShopeeOrderDetails(array $orderSnList)
     {
-        $token = MarketplaceToken::first();
+        $token = $this->getValidShopeeToken();
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
@@ -1041,14 +1165,19 @@ class MarketplaceController extends Controller
 
     public function syncLocalStockToShopee()
     {
-        $token = MarketplaceToken::first();
+        try {
+            $token = $this->getValidShopeeToken();
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
 
         $path = "/api/v2/product/update_stock";
 
-        $hasil = [];
+        $jumlahDiperbarui = 0;
+        $jumlahGagal = 0;
 
         $varianList = VarianBarang::all();
 
@@ -1124,41 +1253,59 @@ class MarketplaceController extends Controller
                 . "&shop_id={$token->shop_id}"
                 . "&sign={$sign}";
 
-            $response = Http::post(
-                $url,
-                $payload
-            );
+            $response = Http::timeout(10)
+                ->retry(2, 200)
+                ->post($url, $payload);
 
-            $hasil[] = [
-                'varian_id' => $varian->id,
-                'nama_barang' => $varian->nama_varian ?? null,
-                'item_id' => $itemId,
-                'model_id' => $modelId,
-                'stok_lokal' => $stok,
-                'response' => $response->json(),
-            ];
+            $body = $response->json();
+
+            if ($response->failed() || !empty($body['error'])) {
+                $jumlahGagal++;
+
+                Log::warning('Sync stok lokal ke Shopee gagal', [
+                    'varian_id' => $varian->id,
+                    'item_id' => $itemId,
+                    'model_id' => $modelId,
+                    'status' => $response->status(),
+                    'response' => $body,
+                ]);
+
+                continue;
+            }
+
+            $jumlahDiperbarui++;
         }
 
-        MarketplaceSyncLog::create([
-            'marketplace_id' => 1,
-            'aktivitas' => 'Sync Stok',
-            'arah_sync' => 'Lokal -> Shopee',
-            'jumlah_produk' => MarketplaceItem::count(),
-            'jumlah_varian' => count($hasil),
-            'sync_at' => now(),
+        $marketplace = Marketplace::first();
 
-        ]);
+        if ($marketplace) {
+            MarketplaceSyncLog::create([
+                'marketplace_id' => $marketplace->id,
+                'aktivitas' => 'Sync Stok',
+                'arah_sync' => 'Lokal -> Shopee',
+                'jumlah_produk' => MarketplaceItem::count(),
+                'jumlah_varian' => $jumlahDiperbarui,
+                'sync_at' => now(),
+            ]);
+
+            $marketplace->update(['last_sync' => now()]);
+        }
+
+        if ($jumlahGagal > 0) {
+            return back()->with(
+                'error',
+                "Sinkronisasi Lokal ke Shopee selesai: {$jumlahDiperbarui} varian diperbarui, {$jumlahGagal} varian gagal dikirim. Periksa token Shopee atau log aplikasi."
+            );
+        }
 
         return back()->with(
             'success',
-            'Sinkronisasi stok berhasil.'
+            "Sinkronisasi Lokal ke Shopee berhasil. {$jumlahDiperbarui} varian diperbarui."
         );
     }
 
     public function syncSingleStockToShopee(VarianBarang $varian)
     {
-        $token = MarketplaceToken::first();
-
         $mapping = MarketplaceMapping::where('varian_id', $varian->id)->first();
 
         if (!$mapping) {
@@ -1176,6 +1323,8 @@ class MarketplaceController extends Controller
         if (!$item) {
             return;
         }
+
+        $token = $this->getValidShopeeToken();
 
         $partnerId = config('services.shopee.partner_id');
         $partnerKey = config('services.shopee.partner_key');
