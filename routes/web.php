@@ -155,7 +155,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Laporan Bulanan - Admin buat & kirim, Owner lihat & putuskan
+    | Laporan Bulanan - Rekap mandiri Admin & Owner
     |--------------------------------------------------------------------------
     */
 
@@ -172,6 +172,7 @@ Route::middleware('auth')->group(function () {
                 Route::get('/{laporan}/pdf', [LaporanBulananController::class, 'pdf'])->name('pdf');
                 Route::get('/{laporan}/pdf-penjualan', [LaporanBulananController::class, 'pdfPenjualan'])->name('pdf-penjualan');
                 Route::get('/{laporan}/pdf-pembelian', [LaporanBulananController::class, 'pdfPembelian'])->name('pdf-pembelian');
+                // Route legacy: dipertahankan untuk laporan lama, tidak dipakai flow rekap mandiri.
                 Route::patch('/{laporan}/kirim', [LaporanBulananController::class, 'kirim'])->name('kirim');
                 Route::patch('/{laporan}/putuskan', [LaporanBulananController::class, 'putuskan'])->name('putuskan');
 

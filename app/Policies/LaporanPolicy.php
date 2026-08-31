@@ -14,16 +14,12 @@ class LaporanPolicy
 
     public function view(User $user, Laporan $laporan)
     {
-        if ($user->hasRole('owner')) {
-            return in_array($laporan->status, ['terkirim', 'ditinjau']);
-        }
-
-        return $user->hasRole('admin');
+        return $user->hasRole(['admin', 'owner']);
     }
 
     public function create(User $user)
     {
-        return $user->hasRole('admin');
+        return $user->hasRole(['admin', 'owner']);
     }
 
     public function kirim(User $user, Laporan $laporan)
@@ -33,6 +29,7 @@ class LaporanPolicy
 
     public function putuskan(User $user, Laporan $laporan)
     {
-        return $user->hasRole('owner') && $laporan->status === 'terkirim';
+        return $user->hasRole('owner')
+            && in_array($laporan->status, ['draft', 'terkirim']);
     }
 }

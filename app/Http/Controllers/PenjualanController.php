@@ -14,7 +14,9 @@ class PenjualanController extends Controller
 {
     public function index()
     {
-        $penjualan = Penjualan::latest()->get();
+        $penjualan = Penjualan::with('detailPenjualan.varian.barang')
+            ->latest()
+            ->get();
 
         return view(
             'penjualan.index',

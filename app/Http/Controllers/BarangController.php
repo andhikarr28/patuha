@@ -174,7 +174,16 @@ class BarangController extends Controller
 
                 $query->orderBy('warna')
                     ->orderBy('ukuran');
-            }
+            },
+
+            'varians.detailPembelian' => function ($query) {
+
+                $query->whereHas('pembelian', function ($query) {
+
+                    $query->where('status', 'diterima');
+                })
+                    ->with('pembelian.supplier');
+            },
         ]);
 
         $jumlahVarian =

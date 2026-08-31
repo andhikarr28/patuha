@@ -201,6 +201,60 @@
             @endif
         </div>
 
+        {{-- RIWAYAT HARGA BELI --}}
+        @php
+            $variansDenganRiwayat = $barang->varians
+                ->filter(fn ($varian) => $varian->detailPembelian->isNotEmpty());
+        @endphp
+        <div class="border rounded">
+            <div class="px-4 py-3 border-b">
+                <h2 class="font-bold">Riwayat Harga Beli</h2>
+                <p class="text-sm text-gray-500">Berdasarkan penerimaan pembelian yang sudah diterima.</p>
+            </div>
+
+            @forelse($variansDenganRiwayat as $varian)
+                <div class="p-4 border-b last:border-b-0">
+                    <div class="mb-3">
+                        <p class="font-semibold">{{ $varian->warna ?: '-' }} / {{ $varian->ukuran ?: '-' }}</p>
+                        <p class="text-xs text-gray-500">SKU: {{ $varian->sku ?: '-' }}</p>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-500 border-b">
+                                    <th class="py-2 pr-4">Tanggal</th>
+                                    <th class="py-2 pr-4">No. Faktur</th>
+                                    <th class="py-2 pr-4">Supplier</th>
+                                    <th class="py-2 pr-4 text-center">Qty</th>
+                                    <th class="py-2 pr-4 text-right">Harga / Unit</th>
+                                    <th class="py-2 text-right">Diskon</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($varian->detailPembelian->sortByDesc(fn ($detail) => $detail->pembelian->tanggal_pembelian) as $detail)
+                                    <tr class="border-b last:border-b-0">
+                                        <td class="py-2 pr-4 whitespace-nowrap">
+                                            {{ \Carbon\Carbon::parse($detail->pembelian->tanggal_pembelian)->format('d M Y') }}
+                                        </td>
+                                        <td class="py-2 pr-4 whitespace-nowrap">{{ $detail->pembelian->no_faktur }}</td>
+                                        <td class="py-2 pr-4">{{ $detail->pembelian->supplier?->nama_supplier ?? '-' }}</td>
+                                        <td class="py-2 pr-4 text-center">{{ $detail->qty }}</td>
+                                        <td class="py-2 pr-4 text-right whitespace-nowrap">Rp {{ number_format($detail->harga_satuan, 0, ',', '.') }}</td>
+                                        <td class="py-2 text-right text-red-600 whitespace-nowrap">Rp {{ number_format($detail->diskon, 0, ',', '.') }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @empty
+                <div class="text-center py-10 px-4 text-sm text-gray-500">
+                    Belum ada riwayat penerimaan pembelian untuk varian barang ini.
+                </div>
+            @endforelse
+        </div>
+
     </div>
 
     <script>

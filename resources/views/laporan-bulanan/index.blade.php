@@ -6,11 +6,11 @@
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
             <h1 class="text-2xl font-bold">Laporan Bulanan</h1>
-            <p class="text-gray-500 text-sm">Laporan resmi rekap penjualan &amp; pembelian untuk owner.</p>
+            <p class="text-gray-500 text-sm">Pilih periode untuk membuat rekap penjualan, pembelian, dan stok langsung dari data sistem.</p>
         </div>
 
         @can('create', App\Models\Laporan::class)
-            <a href="{{ route('laporan-bulanan.create') }}" class="w-full md:w-auto bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold text-center">+ Buat Laporan</a>
+            <a href="{{ route('laporan-bulanan.create') }}" class="w-full md:w-auto bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold text-center">+ Buat Rekap</a>
         @endcan
     </div>
 
@@ -41,13 +41,13 @@
                     @forelse($laporan as $item)
                         @php
                             $statusLabel = match($item->status) {
-                                'draft' => 'Draft',
-                                'terkirim' => 'Terkirim',
+                                'draft' => 'Tersedia',
+                                'terkirim' => 'Tersedia',
                                 'ditinjau' => 'Ditinjau',
                             };
                             $statusColor = match($item->status) {
-                                'draft' => 'text-gray-500',
-                                'terkirim' => 'text-blue-600',
+                                'draft' => 'text-green-600',
+                                'terkirim' => 'text-green-600',
                                 'ditinjau' => 'text-green-600',
                             };
                         @endphp
@@ -71,11 +71,7 @@
                             <td colspan="7" class="text-center py-10">
                                 <p class="font-semibold">Belum Ada Laporan</p>
                                 <p class="text-sm text-gray-500 mt-1">
-                                    @can('create', App\Models\Laporan::class)
-                                        Buat laporan pertama untuk dikirim ke owner.
-                                    @else
-                                        Laporan akan muncul di sini setelah dikirim oleh admin.
-                                    @endcan
+                                    Buat rekap untuk periode yang ingin dilihat.
                                 </p>
                             </td>
                         </tr>
@@ -89,13 +85,13 @@
                 @foreach($laporan as $item)
                     @php
                         $statusLabel = match($item->status) {
-                            'draft' => 'Draft',
-                            'terkirim' => 'Terkirim',
+                            'draft' => 'Tersedia',
+                            'terkirim' => 'Tersedia',
                             'ditinjau' => 'Ditinjau',
                         };
                         $statusColor = match($item->status) {
-                            'draft' => 'text-gray-500',
-                            'terkirim' => 'text-blue-600',
+                            'draft' => 'text-green-600',
+                            'terkirim' => 'text-green-600',
                             'ditinjau' => 'text-green-600',
                         };
                     @endphp
@@ -134,11 +130,7 @@
             <div class="md:hidden text-center py-10 px-4">
                 <p class="font-semibold">Belum Ada Laporan</p>
                 <p class="text-sm text-gray-500 mt-1">
-                    @can('create', App\Models\Laporan::class)
-                        Buat laporan pertama untuk dikirim ke owner.
-                    @else
-                        Laporan akan muncul di sini setelah dikirim oleh admin.
-                    @endcan
+                    Buat rekap untuk periode yang ingin dilihat.
                 </p>
             </div>
         @endif

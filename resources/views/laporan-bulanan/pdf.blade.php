@@ -212,7 +212,7 @@
         @endif
 
         @if($laporan->status === 'ditinjau' && $laporan->keputusan_owner)
-            <h2 class="section-title">Keputusan Owner</h2>
+            <h2 class="section-title">Catatan Owner</h2>
             <p>{{ $laporan->keputusan_owner }}</p>
         @endif
     @endif

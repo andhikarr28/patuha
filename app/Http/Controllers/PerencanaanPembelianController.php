@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PerencanaanPembelian;
+use App\Models\DetailPembelian;
 use App\Models\DetailPerencanaanPembelian;
 use App\Models\Supplier;
 use App\Models\VarianBarang;
@@ -33,7 +34,28 @@ class PerencanaanPembelianController extends Controller
 
         $supplierId = $request->query('supplier_id');
 
-        $query = VarianBarang::query();
+        $hargaBeliTerakhir = DetailPembelian::query()
+            ->select('detail_pembelian.harga_satuan')
+            ->join(
+                'pembelian',
+                'pembelian.id',
+                '=',
+                'detail_pembelian.pembelian_id'
+            )
+            ->where('pembelian.status', 'diterima')
+            ->whereColumn(
+                'detail_pembelian.varian_id',
+                'varian_barang.id'
+            )
+            ->orderByDesc('pembelian.tanggal_pembelian')
+            ->orderByDesc('pembelian.id')
+            ->orderByDesc('detail_pembelian.id')
+            ->limit(1);
+
+        $query = VarianBarang::query()
+            ->select('varian_barang.*')
+            ->addSelect(['harga_beli_terakhir' => $hargaBeliTerakhir])
+            ->with('barang.kategori');
 
         if ($supplierId) {
             $query->whereHas('barang', function ($q) use ($supplierId) {

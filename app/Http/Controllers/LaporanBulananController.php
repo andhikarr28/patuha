@@ -9,6 +9,7 @@ use App\Models\VarianBarang;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class LaporanBulananController extends Controller
 {
@@ -16,13 +17,7 @@ class LaporanBulananController extends Controller
     {
         $this->authorize('viewAny', Laporan::class);
 
-        $query = Laporan::with('pembuat')->latest();
-
-        if (auth()->user()->hasRole('owner')) {
-            $query->whereIn('status', ['terkirim', 'ditinjau']);
-        }
-
-        $laporan = $query->get();
+        $laporan = Laporan::with('pembuat')->latest()->get();
 
         return view('laporan-bulanan.index', compact('laporan'));
     }
@@ -39,13 +34,43 @@ class LaporanBulananController extends Controller
         $this->authorize('create', Laporan::class);
 
         $validated = $request->validate([
+            'jenis_laporan' => 'required|in:lengkap,penjualan,pembelian',
             'periode_awal' => 'required|date',
             'periode_akhir' => 'required|date|after_or_equal:periode_awal',
             'catatan_evaluasi' => 'nullable|string',
+        ], [
+            'jenis_laporan.required' => 'Jenis laporan wajib dipilih.',
+            'jenis_laporan.in' => 'Jenis laporan tidak valid.',
+            'periode_awal.required' => 'Periode awal wajib dipilih.',
+            'periode_awal.date' => 'Format periode awal tidak valid.',
+            'periode_akhir.required' => 'Periode akhir wajib dipilih.',
+            'periode_akhir.date' => 'Format periode akhir tidak valid.',
+            'periode_akhir.after_or_equal' => 'Periode akhir harus sama dengan atau setelah periode awal.',
         ]);
 
         $awal = $validated['periode_awal'];
         $akhir = $validated['periode_akhir'];
+        $jenisLaporan = $validated['jenis_laporan'];
+
+        $adaPenjualan = Penjualan::whereBetween('tanggal_penjualan', [$awal, $akhir])
+            ->exists();
+
+        $adaPembelian = Pembelian::whereBetween('tanggal_pembelian', [$awal, $akhir])
+            ->exists();
+
+        $dataTersedia = match ($jenisLaporan) {
+            'penjualan' => $adaPenjualan,
+            'pembelian' => $adaPembelian,
+            default => $adaPenjualan || $adaPembelian,
+        };
+
+        if (!$dataTersedia) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'periode' => 'Data laporan pada periode tersebut belum tersedia. Pilih periode lain.',
+                ]);
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -277,15 +302,24 @@ class LaporanBulananController extends Controller
             'dibuat_oleh' => auth()->id(),
         ]);
 
-        return redirect()->route('laporan-bulanan.show', $laporan)
-            ->with('success', 'Laporan berhasil dibuat sebagai draft. Periksa dulu sebelum dikirim ke owner.');
+        return redirect()->route('laporan-bulanan.show', [
+            'laporan' => $laporan,
+            'jenis_laporan' => $jenisLaporan,
+        ])
+            ->with('success', 'Rekap laporan berhasil dibuat dan dapat langsung dilihat.');
     }
 
-    public function show(Laporan $laporan)
+    public function show(Request $request, Laporan $laporan)
     {
         $this->authorize('view', $laporan);
 
-        return view('laporan-bulanan.show', compact('laporan'));
+        $validated = $request->validate([
+            'jenis_laporan' => 'nullable|in:lengkap,penjualan,pembelian',
+        ]);
+
+        $jenisLaporan = $validated['jenis_laporan'] ?? 'lengkap';
+
+        return view('laporan-bulanan.show', compact('laporan', 'jenisLaporan'));
     }
 
     /*
@@ -319,14 +353,30 @@ class LaporanBulananController extends Controller
             default => "{$laporan->kode_laporan}.pdf",
         };
 
-        $pdf = Pdf::loadView('laporan-bulanan.pdf', compact('laporan', 'mode'))
-            ->setPaper('a4', 'portrait');
+        try {
+            $pdf = Pdf::loadView('laporan-bulanan.pdf', compact('laporan', 'mode'))
+                ->setPaper('a4', 'portrait');
 
-        return $pdf->download($namaFile);
+            return $pdf->download($namaFile);
+        } catch (\Throwable $exception) {
+            Log::error('Gagal membuat PDF laporan bulanan.', [
+                'laporan_id' => $laporan->id,
+                'mode' => $mode,
+                'user_id' => auth()->id(),
+                'exception' => $exception,
+            ]);
+
+            return back()->with(
+                'error',
+                'PDF laporan belum dapat dibuat. Silakan coba lagi atau hubungi admin.'
+            );
+        }
     }
 
     public function kirim(Laporan $laporan)
     {
+        // Flow lama dipertahankan untuk kompatibilitas laporan existing.
+        // UI rekap mandiri tidak lagi memanggil endpoint ini.
         $this->authorize('kirim', $laporan);
 
         $laporan->update(['status' => 'terkirim', 'dikirim_at' => now()]);
@@ -348,7 +398,7 @@ class LaporanBulananController extends Controller
             'ditinjau_at' => now(),
         ]);
 
-        return back()->with('success', 'Keputusan berhasil disimpan.');
+        return back()->with('success', 'Catatan Owner berhasil disimpan.');
     }
 
     protected function formatBarisAgregat($row): array

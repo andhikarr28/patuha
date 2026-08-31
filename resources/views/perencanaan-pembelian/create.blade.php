@@ -118,6 +118,7 @@
                                     $ukuran = $item->ukuran ?? '-';
                                     $sku = $item->sku ?? '-';
                                     $foto = $item->barang?->foto ?? null;
+                                    $estimasiHarga = $item->harga_beli_terakhir ?? $item->harga_beli ?? 0;
                                     $stokHabis = $item->stok <= 0;
                                     $stokMenipis = $item->stok > 0 && $item->stok <= $item->stok_minimum;
                                 @endphp
@@ -151,7 +152,7 @@
                                     {{-- supplier sudah dipilih dan cocok: bisa ditambah --}}
                                     <template x-if="supplierId">
                                         <button type="button"
-                                            @click="addItem({{ $item->id }}, {{ Js::from($namaBarang) }}, {{ Js::from($warna) }}, {{ Js::from($ukuran) }}, {{ Js::from($sku) }}, {{ (int) $item->stok }})"
+                                            @click="addItem({{ $item->id }}, {{ Js::from($namaBarang) }}, {{ Js::from($warna) }}, {{ Js::from($ukuran) }}, {{ Js::from($sku) }}, {{ (int) $item->stok }}, {{ Js::from((float) $estimasiHarga) }})"
                                             class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white text-xl font-bold">
                                             +
                                         </button>
@@ -315,10 +316,10 @@
                     return matchSearch && matchCategory && matchSupplier;
                 },
 
-                addItem(id, nama, warna, ukuran, sku, stok) {
+                addItem(id, nama, warna, ukuran, sku, stok, estimasiHarga) {
                     const existing = this.cart.find(item => Number(item.id) === Number(id));
                     if (existing) { existing.qty = Number(existing.qty) + 1; return; }
-                    this.cart.push({ id: Number(id), nama, warna, ukuran, sku, stok: Number(stok), qty: 1, estimasi_harga: 0 });
+                    this.cart.push({ id: Number(id), nama, warna, ukuran, sku, stok: Number(stok), qty: 1, estimasi_harga: Number(estimasiHarga) || 0 });
                 },
 
                 removeItem(index) { this.cart.splice(index, 1); },

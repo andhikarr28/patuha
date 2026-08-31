@@ -32,6 +32,7 @@
                 <thead>
                     <tr class="text-left text-gray-500 border-b">
                         <th class="px-4 py-2">No. Nota</th>
+                        <th class="px-4 py-2">Barang</th>
                         <th class="px-4 py-2">Tanggal</th>
                         <th class="px-4 py-2">Channel</th>
                         <th class="px-4 py-2 text-right">Total</th>
@@ -44,6 +45,23 @@
                             <td class="px-4 py-3">
                                 <p class="font-semibold">{{ $item->no_nota }}</p>
                                 <p class="text-xs text-gray-400">ID #{{ $item->id }}</p>
+                            </td>
+                            <td class="px-4 py-3 min-w-[14rem]">
+                                <div class="space-y-1">
+                                    @forelse($item->detailPenjualan as $detail)
+                                        <p class="text-sm text-gray-700">
+                                            <span class="font-medium">{{ $detail->varian?->barang?->nama_barang ?? '-' }}</span>
+                                            @if($detail->varian?->warna || $detail->varian?->ukuran)
+                                                <span class="text-xs text-gray-500">
+                                                    ({{ $detail->varian?->warna ?? '-' }}{{ $detail->varian?->ukuran ? ' / ' . $detail->varian->ukuran : '' }})
+                                                </span>
+                                            @endif
+                                            <span class="text-xs font-semibold text-slate-500">&times; {{ $detail->qty }}</span>
+                                        </p>
+                                    @empty
+                                        <p class="text-sm text-gray-400">Tidak ada detail barang</p>
+                                    @endforelse
+                                </div>
                             </td>
                             <td class="px-4 py-3">{{ \Carbon\Carbon::parse($item->tanggal_penjualan)->format('d M Y') }}</td>
                             <td class="px-4 py-3">
@@ -58,7 +76,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-10">
+                            <td colspan="6" class="text-center py-10">
                                 <p class="font-semibold">Belum Ada Transaksi</p>
                                 <p class="text-sm text-gray-500 mt-1">Transaksi penjualan akan muncul di sini.</p>
                             </td>

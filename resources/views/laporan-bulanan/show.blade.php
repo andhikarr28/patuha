@@ -2,16 +2,25 @@
 
 @section('content')
     @php
+        $jenisLaporan = $jenisLaporan ?? 'lengkap';
         $statusLabel = match ($laporan->status) {
-            'draft' => 'Draft',
-            'terkirim' => 'Terkirim ke Owner',
+            'draft' => 'Tersedia',
+            'terkirim' => 'Tersedia',
             'ditinjau' => 'Sudah Ditinjau',
         };
         $statusColor = match ($laporan->status) {
-            'draft' => 'text-gray-500',
-            'terkirim' => 'text-blue-600',
+            'draft' => 'text-green-600',
+            'terkirim' => 'text-green-600',
             'ditinjau' => 'text-green-600',
         };
+        $jenisLabel = match ($jenisLaporan) {
+            'penjualan' => 'Rekap Penjualan',
+            'pembelian' => 'Rekap Pembelian',
+            default => 'Rekap Lengkap',
+        };
+        $menampilkanPenjualan = $jenisLaporan !== 'pembelian';
+        $menampilkanPembelian = $jenisLaporan !== 'penjualan';
+        $laporanLengkap = $jenisLaporan === 'lengkap';
     @endphp
 
     <div class="p-4 space-y-4">
@@ -28,6 +37,7 @@
                     Periode {{ $laporan->periode_awal->format('d M Y') }} &mdash;
                     {{ $laporan->periode_akhir->format('d M Y') }}
                 </p>
+                <p class="text-gray-500 text-sm">Tampilan: {{ $jenisLabel }}</p>
             </div>
 
             <div class="grid grid-cols-1 gap-2 md:flex md:flex-wrap w-full md:w-auto">
@@ -49,6 +59,18 @@
             <div class="border border-green-300 bg-green-50 text-green-700 rounded p-3 text-sm">{{ session('success') }}</div>
         @endif
 
+        <div class="border rounded p-3">
+            <p class="text-sm font-semibold text-gray-700 mb-2">Jenis Tampilan</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach(['lengkap' => 'Rekap Lengkap', 'penjualan' => 'Penjualan', 'pembelian' => 'Pembelian'] as $jenis => $label)
+                    <a href="{{ route('laporan-bulanan.show', ['laporan' => $laporan, 'jenis_laporan' => $jenis]) }}"
+                        class="rounded px-3 py-1.5 text-xs font-semibold {{ $jenisLaporan === $jenis ? 'bg-blue-600 text-white' : 'border text-gray-700' }}">
+                        {{ $label }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
         {{-- INFO --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div class="border rounded p-3">
@@ -56,8 +78,8 @@
                 <p class="font-semibold">{{ $laporan->pembuat->name ?? '-' }}</p>
             </div>
             <div class="border rounded p-3">
-                <p class="text-sm text-gray-500">Dikirim Pada</p>
-                <p class="font-semibold">{{ $laporan->dikirim_at ? $laporan->dikirim_at->format('d M Y H:i') : '-' }}</p>
+                <p class="text-sm text-gray-500">Dibuat Pada</p>
+                <p class="font-semibold">{{ $laporan->created_at ? $laporan->created_at->format('d M Y H:i') : '-' }}</p>
             </div>
             <div class="border rounded p-3">
                 <p class="text-sm text-gray-500">Ditinjau Pada</p>
@@ -70,44 +92,51 @@
             <h2 class="font-bold mb-3">Rekap Data</h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div class="border rounded p-3">
-                    <p class="text-xs text-gray-500 uppercase mb-1">Penjualan Toko (Offline)</p>
-                    <p class="text-lg font-bold">Rp {{ number_format($laporan->total_penjualan_toko, 0, ',', '.') }}</p>
-                </div>
-                <div class="border rounded p-3">
-                    <p class="text-xs text-gray-500 uppercase mb-1">Penjualan Marketplace</p>
-                    <p class="text-lg font-bold">Rp {{ number_format($laporan->total_penjualan_marketplace, 0, ',', '.') }}
-                    </p>
-                </div>
-                <div class="border rounded p-3 bg-slate-50">
-                    <p class="text-xs text-gray-500 uppercase mb-1">Total Penjualan
-                        ({{ $laporan->jumlah_transaksi_penjualan }} transaksi)</p>
-                    <p class="text-lg font-bold text-green-700">Rp
-                        {{ number_format($laporan->total_penjualan, 0, ',', '.') }}
-                    </p>
-                </div>
-                <div class="border rounded p-3 bg-slate-50">
-                    <p class="text-xs text-gray-500 uppercase mb-1">Total Pembelian
-                        ({{ $laporan->jumlah_transaksi_pembelian }} transaksi)</p>
-                    <p class="text-lg font-bold text-blue-700">Rp
-                        {{ number_format($laporan->total_pembelian, 0, ',', '.') }}
-                    </p>
-                </div>
+                @if($menampilkanPenjualan)
+                    <div class="border rounded p-3">
+                        <p class="text-xs text-gray-500 uppercase mb-1">Penjualan Toko (Offline)</p>
+                        <p class="text-lg font-bold">Rp {{ number_format($laporan->total_penjualan_toko, 0, ',', '.') }}</p>
+                    </div>
+                    <div class="border rounded p-3">
+                        <p class="text-xs text-gray-500 uppercase mb-1">Penjualan Marketplace</p>
+                        <p class="text-lg font-bold">Rp {{ number_format($laporan->total_penjualan_marketplace, 0, ',', '.') }}
+                        </p>
+                    </div>
+                    <div class="border rounded p-3 bg-slate-50">
+                        <p class="text-xs text-gray-500 uppercase mb-1">Total Penjualan
+                            ({{ $laporan->jumlah_transaksi_penjualan }} transaksi)</p>
+                        <p class="text-lg font-bold text-green-700">Rp
+                            {{ number_format($laporan->total_penjualan, 0, ',', '.') }}
+                        </p>
+                    </div>
+                @endif
+                @if($menampilkanPembelian)
+                    <div class="border rounded p-3 bg-slate-50">
+                        <p class="text-xs text-gray-500 uppercase mb-1">Total Pembelian
+                            ({{ $laporan->jumlah_transaksi_pembelian }} transaksi)</p>
+                        <p class="text-lg font-bold text-blue-700">Rp
+                            {{ number_format($laporan->total_pembelian, 0, ',', '.') }}
+                        </p>
+                    </div>
+                @endif
             </div>
 
-            @php
-                $selisih = $laporan->total_penjualan - $laporan->total_pembelian;
-            @endphp
-            <div class="mt-3 flex flex-col gap-1 md:flex-row md:justify-between md:items-center bg-slate-900 text-white rounded p-3">
-                <span class="text-sm">Selisih Penjualan &ndash; Pembelian</span>
-                <span class="text-xl font-bold {{ $selisih >= 0 ? 'text-green-400' : 'text-red-400' }}">
-                    Rp {{ number_format($selisih, 0, ',', '.') }}
-                </span>
-            </div>
+            @if($laporanLengkap)
+                @php
+                    $selisih = $laporan->total_penjualan - $laporan->total_pembelian;
+                @endphp
+                <div class="mt-3 flex flex-col gap-1 md:flex-row md:justify-between md:items-center bg-slate-900 text-white rounded p-3">
+                    <span class="text-sm">Selisih Penjualan &ndash; Pembelian</span>
+                    <span class="text-xl font-bold {{ $selisih >= 0 ? 'text-green-400' : 'text-red-400' }}">
+                        Rp {{ number_format($selisih, 0, ',', '.') }}
+                    </span>
+                </div>
+            @endif
         </div>
 
         {{-- STOK & LABA --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        @if($laporanLengkap)
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div class="border rounded p-4">
                 <h3 class="font-bold mb-1">⚠️ Stok Menipis</h3>
@@ -128,10 +157,12 @@
                 </p>
             </div>
 
-        </div>
+            </div>
+        @endif
 
         {{-- BARANG TERLARIS --}}
-        <div class="border rounded p-4">
+        @if($menampilkanPenjualan)
+            <div class="border rounded p-4">
             <h2 class="font-bold mb-3">🔥 Barang Terlaris</h2>
 
             @if(empty($laporan->barang_terlaris))
@@ -175,10 +206,12 @@
                     @endforeach
                 </div>
             @endif
-        </div>
+            </div>
+        @endif
 
         {{-- BARANG KURANG LAKU --}}
-        <div class="border rounded p-4">
+        @if($menampilkanPenjualan)
+            <div class="border rounded p-4">
             <h2 class="font-bold mb-3">🐌 Barang Kurang Laku</h2>
 
             @if(empty($laporan->barang_kurang_laku))
@@ -222,10 +255,12 @@
                     @endforeach
                 </div>
             @endif
-        </div>
+            </div>
+        @endif
 
         {{-- RINGKASAN PERENCANAAN PEMBELIAN --}}
-        <div class="border rounded p-4">
+        @if($menampilkanPembelian)
+            <div class="border rounded p-4">
             <h2 class="font-bold mb-3">📋 Ringkasan Perencanaan Pembelian</h2>
 
             @php $ringkasan = $laporan->ringkasan_perencanaan ?? []; @endphp
@@ -246,10 +281,12 @@
             @else
                 <p class="text-sm text-gray-400">Tidak ada perencanaan pembelian pada periode ini.</p>
             @endif
-        </div>
+            </div>
+        @endif
 
         {{-- DETAIL TRANSAKSI PENJUALAN --}}
-        <div class="border rounded p-4">
+        @if($menampilkanPenjualan)
+            <div class="border rounded p-4">
             <h2 class="font-bold mb-3">🧾 Detail Transaksi Penjualan
                 ({{ count($laporan->detail_transaksi_penjualan ?? []) }})</h2>
 
@@ -300,10 +337,12 @@
                     @endforeach
                 </div>
             @endif
-        </div>
+            </div>
+        @endif
 
         {{-- DETAIL TRANSAKSI PEMBELIAN --}}
-        <div class="border rounded p-4">
+        @if($menampilkanPembelian)
+            <div class="border rounded p-4">
             <h2 class="font-bold mb-3">📦 Detail Transaksi Pembelian
                 ({{ count($laporan->detail_transaksi_pembelian ?? []) }})</h2>
 
@@ -353,7 +392,8 @@
                     @endforeach
                 </div>
             @endif
-        </div>
+            </div>
+        @endif
 
         {{-- CATATAN EVALUASI ADMIN --}}
         @if($laporan->catatan_evaluasi)
@@ -363,41 +403,26 @@
             </div>
         @endif
 
-        {{-- AKSI: KIRIM (ADMIN, STATUS DRAFT) --}}
-        @can('kirim', $laporan)
-            <div class="border border-blue-200 bg-blue-50 rounded p-4">
-                <p class="text-sm text-blue-800 mb-3">Laporan ini masih draft dan belum terlihat oleh owner. Periksa datanya
-                    sebelum dikirim.</p>
-                <form action="{{ route('laporan-bulanan.kirim', $laporan) }}" method="POST"
-                    onsubmit="return confirm('Kirim laporan ini ke owner? Laporan tidak dapat diedit lagi setelah dikirim.')">
-                    @csrf
-                    @method('PATCH')
-                    <button type="submit" class="w-full md:w-auto bg-blue-600 text-white rounded px-4 py-2 text-sm font-semibold">Kirim ke
-                        Owner</button>
-                </form>
-            </div>
-        @endcan
-
-        {{-- AKSI: PUTUSKAN (OWNER, STATUS TERKIRIM) --}}
+        {{-- CATATAN OWNER (OPSIONAL, TANPA PROSES KIRIM ADMIN) --}}
         @can('putuskan', $laporan)
             <div class="border border-amber-200 bg-amber-50 rounded p-4">
-                <p class="text-sm text-amber-800 mb-3">Laporan ini menunggu keputusan Anda.</p>
+                <p class="text-sm text-amber-800 mb-3">Tambahkan catatan atau arahan untuk ditindaklanjuti Admin bila diperlukan.</p>
                 <form action="{{ route('laporan-bulanan.putuskan', $laporan) }}" method="POST">
                     @csrf
                     @method('PATCH')
                     <textarea name="keputusan_owner" rows="4"
-                        placeholder="Tulis keputusan atau arahan berdasarkan laporan ini..."
+                        placeholder="Tulis catatan atau arahan berdasarkan laporan ini..."
                         class="w-full border rounded px-3 py-2 text-sm mb-3" required>{{ old('keputusan_owner') }}</textarea>
                     <button type="submit" class="w-full md:w-auto bg-green-600 text-white rounded px-4 py-2 text-sm font-semibold">Simpan
-                        Keputusan</button>
+                        Catatan</button>
                 </form>
             </div>
         @endcan
 
-        {{-- KEPUTUSAN OWNER (SUDAH DITINJAU, READ-ONLY) --}}
+        {{-- CATATAN OWNER (SUDAH DITINJAU, READ-ONLY) --}}
         @if($laporan->status === 'ditinjau')
             <div class="border border-green-200 bg-green-50 rounded p-4">
-                <h2 class="font-bold text-green-800 mb-2">Keputusan Owner</h2>
+                <h2 class="font-bold text-green-800 mb-2">Catatan Owner</h2>
                 <p class="text-sm text-green-800 whitespace-pre-line">{{ $laporan->keputusan_owner }}</p>
                 <p class="text-xs text-green-600 mt-2">Ditinjau pada {{ $laporan->ditinjau_at->format('d M Y H:i') }}</p>
             </div>
